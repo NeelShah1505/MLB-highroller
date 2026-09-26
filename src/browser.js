@@ -47,7 +47,7 @@ export class BrowserManager {
         return {
           rowText: row.innerText || row.textContent || '',
           cells,
-          sport: icons.find(x => ['Baseball', 'AmericanFootball', 'Soccer', 'Tennis', 'Basketball', 'IceHockey'].includes(x)) || icons[0] || '',
+          sport: icons.find(x => ['Baseball', 'AmericanFootball', 'Soccer', 'Tennis', 'Basketball', 'IceHockey', 'Specials', 'Entertainment', 'Wrestling', 'MMA'].includes(x)) || icons[0] || '',
         };
       });
     });

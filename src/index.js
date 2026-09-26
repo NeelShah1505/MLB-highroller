@@ -2,6 +2,7 @@ import { CFG } from './config.js';
 import { BrowserManager } from './browser.js';
 import { Storage } from './storage.js';
 import { TelegramNotifier, formatNotification } from './telegram.js';
+import { classifyBet } from './filter.js';
 
 function norm(s) { return (s || '').replace(/\s+/g, ' ').trim(); }
 function isLikelyOdds(s) {
@@ -23,21 +24,6 @@ function parseRow(raw) {
   const amount = texts.find((x, i) => i > 0 && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
   const user = texts.find(x => x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
   return { event, user, time, odds, amount, sport: raw.sport || '', rawText: raw.rowText };
-}
-
-// EXACT DETECTION LOGIC
-function looksBaseball(r) {
-  const hay = `${r.sport} ${r.rawText}`.toLowerCase();
-  return r.sport.toLowerCase() === 'baseball' || hay.includes('baseball') || hay.includes('mlb');
-}
-
-function looksPlayerProp(r) {
-  if (!looksBaseball(r)) return false;
-  if (!CFG.playerPropsOnly) return true;
-  const e = norm(r.event);
-  if (!e || /^multi\b/i.test(e)) return false;
-  if (/\s[-–—]\s/.test(e)) return false;
-  return true;
 }
 
 function makeId(r) { return [r.event, r.user, r.time, r.odds, r.amount].map(norm).join(' | '); }
@@ -91,7 +77,10 @@ async function main() {
     try {
       const rawRows = await browserManager.extractRows();
       const parsed = rawRows.map(parseRow).filter(Boolean);
-      const matches = parsed.filter(looksPlayerProp);
+      const matches = parsed.map(r => {
+        const res = classifyBet(r, CFG);
+        return res.isMatch ? { ...r, category: res.category } : null;
+      }).filter(Boolean);
       pollCount++;
 
       if (!initialized) {
@@ -110,8 +99,8 @@ async function main() {
           matchesCount++;
           storage.append({ ...r, id });
 
-          const msg = formatNotification(r);
-          console.log(`\n🚨 NEW MLB BET DETECTED!\n${msg}\n`);
+          const msg = formatNotification(r, r.category);
+          console.log(`\n🚨 NEW BET DETECTED [${(r.category || 'BET').toUpperCase()}]!\n${msg}\n`);
           await notifier.send(msg);
         }
       }

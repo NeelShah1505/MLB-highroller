@@ -1,4 +1,16 @@
-export function formatNotification(r) {
+export function formatNotification(r, category = 'mlb') {
+  if (category === 'wrestling' || r.category === 'wrestling') {
+    return [
+      '🤼 *Specials / Pro Wrestling Bet Alert*',
+      `*Selection / Event:* \`${r.event || '—'}\``,
+      `*Odds:* \`${r.odds || '—'}\``,
+      `*Amount:* \`${r.amount || '—'}\``,
+      `*User:* \`${r.user || 'Hidden'}\``,
+      `*Time:* \`${r.time || '—'}\``,
+      `*Category:* \`Specials (Pro Wrestling)\``,
+    ].join('\n');
+  }
+
   return [
     '⚾ *MLB Player Prop Alert*',
     `*Player / Market:* \`${r.event || '—'}\``,
