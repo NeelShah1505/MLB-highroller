@@ -26,8 +26,8 @@ This is a heuristic, not a guaranteed market-level classifier. The current versi
 
 ## Requirements
 
-- Windows 10/11
-- Node.js LTS
+- macOS, Linux, or Windows 10/11
+- Node.js LTS (v18+)
 - Google Chrome
 - Telegram
 - A Telegram bot created with `@BotFather`
@@ -35,36 +35,34 @@ This is a heuristic, not a guaranteed market-level classifier. The current versi
 
 ## Installation
 
-Install Node.js LTS from <https://nodejs.org/>.
-
-Verify:
-
-```powershell
-node --version
-npm --version
-```
-
-Then, from the repository folder:
-
-```powershell
+```bash
 npm install
+npm test
 ```
 
 ## Start the dedicated Chrome session
 
-The watcher attaches to Chrome over the Chrome DevTools Protocol (CDP). Use a dedicated Chrome profile so it does not interfere with your normal browser session.
+The watcher attaches to Chrome over the Chrome DevTools Protocol (CDP).
 
-Run:
+### On macOS:
+```bash
+./scripts/start-chrome.sh
+```
 
+### On Windows:
 ```bat
 scripts\start-chrome.bat
 ```
 
 Or manually:
-
-```bat
-"%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\StakeHighRollerChrome"
-```
+- **macOS:**
+  ```bash
+  open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir="$HOME/Library/Application Support/StakeHighRollerChrome" "https://stake.jp/sports/high/all"
+  ```
+- **Windows:**
+  ```bat
+  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\StakeHighRollerChrome"
+  ```
 
 In that Chrome window open:
 
@@ -132,10 +130,37 @@ User: Hidden
 Time: 5:13 AM
 ```
 
+## Running 24/7 Continuously
+
+To keep the watcher running uninterrupted without sleep issues:
+
+### 1. Prevent Mac Sleep (while on AC power)
+In a separate terminal or background, run:
+```bash
+caffeinate -disu &
+```
+*(This prevents macOS from sleeping display or system idle while plugged in).*
+
+### 2. Using PM2 (Recommended for 24/7 uptime)
+Install PM2 globally if not installed:
+```bash
+npm install -g pm2
+```
+Start the watcher as a background daemon:
+```bash
+pm2 start src/index.js --name mlb-highroller
+pm2 save
+```
+Manage:
+- View live logs: `pm2 logs mlb-highroller`
+- Status: `pm2 status`
+- Stop: `pm2 stop mlb-highroller`
+
 ## Useful commands
 
-```powershell
+```bash
 npm install
+npm test
 npm run setup-telegram
 npm start
 ```
