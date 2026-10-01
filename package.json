@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Monitors Stake High Rollers for MLB player-prop rows and sends one Telegram notification per newly seen bet.",
+  "author": "Neel Shah <neelshah@noreply.github.com>",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
