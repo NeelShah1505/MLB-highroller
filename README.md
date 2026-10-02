@@ -1,30 +1,34 @@
 
-# Stake High Roller — Tennis Watcher
+# Stake High Roller — Pro Wrestling Watcher
 
-A resilient Node.js + Playwright watcher that monitors Stake's High Rollers table via Chrome DevTools Protocol (CDP) and sends instant Telegram alerts for **Tennis High Roller bets only**.
+A 24/7 Node.js + Playwright watcher that monitors Stake's High Rollers table via Chrome DevTools Protocol (CDP) and sends instant Telegram alerts for **Pro Wrestling High Roller bets only**, including championship and special event markets.
 
 > This project does not place bets or provide betting recommendations. It forwards detected High Roller information to Telegram.
 
 ## What it does
 
-For each newly detected Tennis High Roller bet, the watcher dispatches:
+For each newly detected Pro Wrestling High Roller bet, the watcher dispatches:
 
 - 👤 User: Username (or `Hidden`)
-- 🎾 Event: Tournament / Player match
-- 💰 Amount: Bet amount in original currency
+- 🎯 Selection: Wrestler / Winner / Selection
+- 🏆 Event: Event name (e.g. Royal Rumble, WrestleMania, Money in the Bank)
+- 📊 Market: Market name (e.g. World Heavyweight Championship, Match Winner)
 - 📈 Odds: Decimal odds
-- 🕐 Time: Timestamp shown on Stake
+- 💰 Stake: Bet amount
+- 🕐 Stake Time: Timestamp shown on Stake
+- ⚡ Live Detected: Real-time IST timestamp
 - 🆔 Bet ID: Extracted from detail modal (when `PREVIEW_DETAILS=true`)
 
 The watcher polls every 1000ms by default (`POLL_MS=1000`). Existing rows present when the process starts are seeded during initial sync to prevent spamming Telegram with historical bets.
 
-## Tennis Detection Logic
+## Pro Wrestling Detection Logic
 
-The watcher strictly isolates Tennis bets:
-- Matches sport icon `data-ds-icon="Tennis"`.
-- Explicitly rejects non-tennis sports (Soccer, Basketball, Cricket, Baseball, Ice Hockey, Specials/Wrestling, etc.).
-- Explicitly rejects **Table Tennis** (`TableTennis`).
-- Explicitly rejects **Multi bets** (`BetMulti`, `Multi (x)`).
+The watcher captures all Pro Wrestling bets:
+- **Sport-Level Detection**: Matches `Pro Wrestling`, `Wrestling`, `WWE`, or `AEW` icons / sport attributes.
+- **Event-Only Rows**: Detects rows even if the visible text only says `Pro Wrestling`.
+- **Special / Championship Markets**: Captures `Money in the Bank`, `Royal Rumble Match Winner`, `World Heavyweight Championship`, `WrestleMania`, etc.
+- **Wrestler Selections**: Matches individual wrestler names without requiring the word "wrestling".
+- **Strict Isolation**: Explicitly ignores all other sports (Soccer, Basketball, Cricket, Baseball, Ice Hockey, Tennis, Table Tennis, Multi bets, etc.).
 
 ## Requirements
 
@@ -52,11 +56,10 @@ TELEGRAM_ENABLED=true
 TELEGRAM_BOT_TOKEN=8957540925:AAEMwVj0M7J7bNFeFyRck3Ncsd840FIsvKg
 TELEGRAM_CHAT_ID=5167354900
 
-PLAYER_PROPS_ONLY=true
 PREVIEW_DETAILS=true
+TARGET_SPORT=wrestling
 
 STAKE_URL=https://stake.jp/sports/high/all
-TARGET_SPORT=tennis
 DEBUG=true
 LOG_FILE=data/bets.jsonl
 ```
@@ -64,14 +67,17 @@ LOG_FILE=data/bets.jsonl
 ## Notification Example
 
 ```text
-🎾 TENNIS HIGH ROLLER
+🤼 PRO WRESTLING HIGH ROLLER
 
 👤 User: Hidden
-🎾 Event: Valentin Royer
-💰 Amount: ₹67,425.00
-📈 Odds: 2.15
-🕐 Time: 10:24 AM
-🆔 Bet ID: 661868490
+🎯 Selection: Roman Reigns
+🏆 Event: Money in the Bank 2026
+📊 Market: World Heavyweight Championship
+📈 Odds: 1.10
+💰 Stake: ₹100,000.00
+🕐 Stake Time: 7:14 PM
+⚡ Live Detected: 12:44:15 AM IST
+🆔 Bet ID: 881923145
 ```
 
 ## Running 24/7 Continuously

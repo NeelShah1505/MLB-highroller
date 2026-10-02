@@ -11,8 +11,8 @@ export function loadConfig(env = process.env) {
     cdpUrl: (env.CDP_URL || 'http://127.0.0.1:9222').trim(),
     debug: String(env.DEBUG || 'false').toLowerCase() === 'true',
     playerPropsOnly: String(env.PLAYER_PROPS_ONLY || 'true').toLowerCase() === 'true',
-    previewDetails: String(env.PREVIEW_DETAILS || 'false').toLowerCase() === 'true',
-    targetSport: (env.TARGET_SPORT || 'tennis').trim().toLowerCase(),
+    previewDetails: String(env.PREVIEW_DETAILS || 'true').toLowerCase() === 'true',
+    targetSport: (env.TARGET_SPORT || 'wrestling').trim().toLowerCase(),
   };
 }
 

@@ -49,10 +49,10 @@ function makeFingerprint(r) {
 
 async function main() {
   console.log('='.repeat(62));
-  console.log(' 🎾 Stake High Roller — Tennis Watcher');
+  console.log(' 🤼 Stake High Roller — Pro Wrestling Watcher');
   console.log('='.repeat(62));
   console.log(`Watching ${CFG.url}`);
-  console.log(`Poll: ${CFG.pollMs}ms | Target: ${CFG.targetSport.toUpperCase()} | Preview Details: ${CFG.previewDetails ? 'enabled' : 'disabled'}`);
+  console.log(`Poll: ${CFG.pollMs}ms | Mode: PRO WRESTLING ONLY | Preview details: ${CFG.previewDetails ? 'yes' : 'no'}`);
   console.log(`Telegram: ${CFG.telegramEnabled ? 'enabled' : 'disabled'}`);
 
   const storage = new Storage(CFG.logFile);
@@ -111,20 +111,24 @@ async function main() {
           if (fp) seen.set(fp, Date.now());
         }
         initialized = true;
-        console.log(`[INFO] Current tennis rows: ${matches.length}`);
-        console.log(`[INFO] Initial sync complete: ${matches.length} existing tennis rows seeded.`);
-        console.log(`[INFO] Tennis watcher started.`);
+        console.log(`[]`);
+        console.log(`Current Pro Wrestling rows: ${matches.length}`);
+        console.log(`Initial sync complete: ${matches.length} existing Pro Wrestling rows seeded.`);
+        console.log(`[INFO] Pro Wrestling watcher started.`);
       } else {
         for (const r of matches) {
           const fp = makeFingerprint(r);
           if (!fp || seen.has(fp)) continue;
 
-          // Attempt modal extraction for Bet ID & Payout if preview details is enabled
+          // Attempt modal extraction for Selection, Event, Market, Bet ID & Payout
           if (CFG.previewDetails && typeof r.rowIndex === 'number') {
             const details = await browserManager.fetchRowDetails(r.rowIndex);
             if (details) {
               if (details.betId) r.betId = details.betId;
               if (details.payout) r.payout = details.payout;
+              if (details.selection) r.selection = details.selection;
+              if (details.event) r.event = details.event;
+              if (details.market) r.market = details.market;
             }
           }
 
@@ -141,16 +145,18 @@ async function main() {
           matchesCount++;
           storage.append({ ...r, id: canonicalId });
 
-          console.log(`\n[INFO] New tennis bet detected`);
-          console.log(`  🎾 Event:  ${r.event}`);
-          console.log(`  👤 User:   ${r.user}`);
-          console.log(`  💰 Amount: ${r.amount}`);
-          console.log(`  📈 Odds:   ${r.odds}`);
-          console.log(`  🕐 Time:   ${r.time}`);
-          if (r.betId) console.log(`  🆔 Bet ID: ${r.betId}`);
-          if (r.payout) console.log(`  💵 Payout: ${r.payout}`);
+          console.log(`\n[INFO] New Pro Wrestling bet detected`);
+          console.log(`  🎯 Selection: ${r.selection || r.event || 'Pro Wrestling'}`);
+          console.log(`  🏆 Event:     ${r.event || '—'}`);
+          console.log(`  📊 Market:    ${r.market || '—'}`);
+          console.log(`  👤 User:      ${r.user}`);
+          console.log(`  💰 Stake:     ${r.amount}`);
+          console.log(`  📈 Odds:      ${r.odds}`);
+          console.log(`  🕐 Time:      ${r.time}`);
+          if (r.betId) console.log(`  🆔 Bet ID:    ${r.betId}`);
+          if (r.payout) console.log(`  💵 Payout:    ${r.payout}`);
 
-          const msg = formatNotification(r, 'tennis');
+          const msg = formatNotification(r, 'wrestling');
           await notifier.send(msg);
           console.log(`[INFO] Telegram notification sent\n`);
         }

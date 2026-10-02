@@ -72,15 +72,35 @@ export class BrowserManager {
       const details = await this.page.evaluate(() => {
         const modal = document.querySelector('[role="dialog"], [data-testid="modal"], div[class*="modal"]') || document.body;
         const text = modal.innerText || '';
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
         // Match Bet ID e.g., Bet ID: 661868490 or Bet ID\n661868490 or #123456789
         const betIdMatch = text.match(/(?:bet\s*id|id)\s*[:#]?\s*(\d{6,15})/i) || text.match(/\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\b/i);
         // Match Payout / Return e.g., Payout: ₹123,456
         const payoutMatch = text.match(/(?:payout|return|win)\s*[:#]?\s*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
+        // Match Stake / Amount
+        const stakeMatch = text.match(/(?:stake|amount|bet)\s*[:#]?\s*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
+
+        let selection = null;
+        let event = null;
+        let market = null;
+
+        const headings = [...modal.querySelectorAll('h1, h2, h3, h4, h5, h6, [class*="heading"], [class*="title"]')].map(el => el.innerText.trim()).filter(Boolean);
+        if (headings.length > 0) {
+          selection = headings[0];
+          if (headings.length > 1) market = headings[1];
+        }
+
+        const eventLine = lines.find(l => /(?:royal rumble|wrestlemania|summerslam|money in the bank|survivor series|elimination chamber|wwe|aew)/i.test(l));
+        if (eventLine) event = eventLine;
 
         return {
           betId: betIdMatch ? betIdMatch[1] : null,
           payout: payoutMatch ? payoutMatch[1] : null,
+          stake: stakeMatch ? stakeMatch[1] : null,
+          selection: selection && selection.length < 100 ? selection : null,
+          event: event && event.length < 100 ? event : null,
+          market: market && market.length < 100 ? market : null,
         };
       });
 

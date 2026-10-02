@@ -10,7 +10,7 @@ test('loadConfig provides sanitized defaults and trims inputs', () => {
     TELEGRAM_ENABLED: 'true',
     PLAYER_PROPS_ONLY: 'true',
     PREVIEW_DETAILS: 'true',
-    TARGET_SPORT: 'tennis',
+    TARGET_SPORT: 'wrestling',
   });
   assert.equal(cfg.botToken, '12345:token');
   assert.equal(cfg.chatId, '5167354900');
@@ -18,6 +18,6 @@ test('loadConfig provides sanitized defaults and trims inputs', () => {
   assert.equal(cfg.telegramEnabled, true);
   assert.equal(cfg.playerPropsOnly, true);
   assert.equal(cfg.previewDetails, true);
-  assert.equal(cfg.targetSport, 'tennis');
+  assert.equal(cfg.targetSport, 'wrestling');
   assert.equal(cfg.cdpUrl, 'http://127.0.0.1:9222');
 });

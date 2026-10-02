@@ -33,15 +33,41 @@ export function formatNotification(r, category = 'tennis') {
   }
 
   if (category === 'wrestling' || r.category === 'wrestling') {
-    return [
-      '🤼 *Specials / Pro Wrestling Bet Alert*',
-      `*Selection / Event:* \`${r.event || '—'}\``,
-      `*Odds:* \`${r.odds || '—'}\``,
-      `*Amount:* \`${r.amount || '—'}\``,
-      `*User:* \`${r.user || 'Hidden'}\``,
-      `*Time:* \`${r.time || '—'}\``,
-      `*Category:* \`Specials (Pro Wrestling)\``,
-    ].join('\n');
+    const liveTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: true,
+    }).format(new Date());
+
+    const lines = [
+      '🤼 *PRO WRESTLING HIGH ROLLER*',
+      '',
+      `👤 *User:* \`${r.user || 'Hidden'}\``,
+      `🎯 *Selection:* \`${r.selection || r.event || 'Pro Wrestling'}\``,
+    ];
+
+    if (r.event && r.event !== r.selection && r.event !== 'Pro Wrestling') {
+      lines.push(`🏆 *Event:* \`${r.event}\``);
+    }
+    if (r.market && r.market !== r.event) {
+      lines.push(`📊 *Market:* \`${r.market}\``);
+    }
+
+    lines.push(`📈 *Odds:* \`${r.odds || '—'}\``);
+    lines.push(`💰 *Stake:* \`${r.amount || '—'}\``);
+    lines.push(`🕐 *Stake Time:* \`${r.time || '—'}\``);
+    lines.push(`⚡ *Live Detected:* \`${liveTime} IST\``);
+
+    if (r.payout) {
+      lines.push(`💵 *Payout:* \`${r.payout}\``);
+    }
+    if (r.betId) {
+      lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
+    }
+
+    return lines.join('\n');
   }
 
   return [

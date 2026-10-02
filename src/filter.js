@@ -65,32 +65,82 @@ const WRESTLING_KEYWORDS = [
   'wrestling', 'pro wrestling', 'wwe', 'aew', 'royal rumble',
   'money in the bank', 'wrestlemania', 'summer slam', 'summerslam',
   'survivor series', 'elimination chamber', 'crown jewel', 'bad blood',
+  'world heavyweight', 'wwe championship', 'universal championship',
+  'intercontinental championship', 'united states championship',
+  'women\'s world championship', 'women\'s championship', 'tag team championship',
+  'match winner', 'royal rumble winner', 'royal rumble match winner',
   'roman reigns', 'cody rhodes', 'gunther', 'bron breakker', 'oba femi',
   'kevin owens', 'trick williams', 'la knight', 'seth rollins', 'cm punk',
   'rhea ripley', 'john cena', 'the rock', 'dwayne johnson', 'logan paul',
-  'drew mcintyre', 'damian priest', 'jey uso', 'jimmy uso', 'solo sikoa'
+  'drew mcintyre', 'damian priest', 'jey uso', 'jimmy uso', 'solo sikoa',
+  'brock lesnar', 'randy orton', 'jade cargill', 'bianca belair', 'charlotte flair',
+  'becky lynch', 'bayley', 'liv morgan', 'dominik mysterio', 'finn balor',
+  'ilja dragunov', 'shinsuke nakamura', 'aj styles', 'sami zayn', 'sheamus',
+  'rey mysterio', 'chad gable', 'austin theory', 'karrion kross', 'bray wyatt',
+  'uncle howdy', 'darby allin', 'mjf', 'will ospreay', 'swerve strickland',
+  'kazuchika okada', 'kenny omega', 'hangman page', 'jon moxley', 'mercedes mone'
 ];
 
 export function looksProWrestling(r) {
   const sport = (r.sport || '').toLowerCase();
-  const hay = `${sport} ${r.event || ''} ${r.rawText || ''}`.toLowerCase();
+  const event = norm(r.event).toLowerCase();
+  const raw = norm(r.rawText || '').toLowerCase();
+  const hay = `${sport} ${event} ${raw}`.toLowerCase();
 
-  if (sport.includes('wrestling') || hay.includes('pro wrestling')) {
+  // 1. Exclude multi bets
+  if (!event || /^multi\b/i.test(event) || /^multi\b/i.test(raw)) {
+    return false;
+  }
+  if (Array.isArray(r.icons) && r.icons.some(i => i.toLowerCase().includes('multi'))) {
+    return false;
+  }
+
+  // 2. Exclude other known sports if their icon or sport name is unambiguous
+  const nonWrestlingSports = [
+    'tennis', 'tabletennis', 'soccer', 'basketball', 'cricket',
+    'baseball', 'icehockey', 'americanfootball', 'darts', 'rugby',
+    'snooker', 'volleyball', 'handball', 'futsal', 'boxing', 'motorsport'
+  ];
+  if (Array.isArray(r.icons) && r.icons.some(i => nonWrestlingSports.includes(i.toLowerCase()))) {
+    return false;
+  }
+  if (nonWrestlingSports.includes(sport)) {
+    return false;
+  }
+
+  // 3. Positive match on Sport / Icon
+  if (sport.includes('wrestling') || sport.includes('prowrestling') || sport.includes('wwe') || sport.includes('aew')) {
+    return true;
+  }
+  if (Array.isArray(r.icons) && r.icons.some(i => ['Wrestling', 'ProWrestling', 'WWE', 'AEW'].includes(i))) {
     return true;
   }
 
-  const isSpecials = sport.includes('special') || sport.includes('entertainment') || hay.includes('specials');
-  if (isSpecials && WRESTLING_KEYWORDS.some(kw => hay.includes(kw))) {
+  // 4. Matches if the row/event says "Pro Wrestling" (critical requirement from handoff)
+  if (event.includes('pro wrestling') || event === 'wrestling' || raw.includes('pro wrestling')) {
     return true;
   }
 
-  return WRESTLING_KEYWORDS.some(kw => hay.includes(kw));
+  // 5. Matches wrestling championships / events / keywords
+  if (WRESTLING_KEYWORDS.some(kw => hay.includes(kw))) {
+    return true;
+  }
+
+  return false;
 }
 
-export function classifyBet(r, cfg = { playerPropsOnly: true, targetSport: 'tennis' }) {
-  const target = (cfg.targetSport || 'tennis').toLowerCase();
+export function classifyBet(r, cfg = { playerPropsOnly: true, targetSport: 'wrestling' }) {
+  const target = (cfg.targetSport || 'wrestling').toLowerCase();
 
-  // If configured for Tennis (default)
+  // If configured for Pro Wrestling (default)
+  if (target === 'wrestling') {
+    if (looksProWrestling(r)) {
+      return { isMatch: true, category: 'wrestling' };
+    }
+    return { isMatch: false, category: null };
+  }
+
+  // If configured for Tennis
   if (target === 'tennis') {
     if (looksTennis(r)) {
       return { isMatch: true, category: 'tennis' };
@@ -98,12 +148,12 @@ export function classifyBet(r, cfg = { playerPropsOnly: true, targetSport: 'tenn
     return { isMatch: false, category: null };
   }
 
-  // If configured for All or Multi-sport
-  if (looksTennis(r)) {
-    return { isMatch: true, category: 'tennis' };
-  }
+  // Multi-sport fallback
   if (looksProWrestling(r)) {
     return { isMatch: true, category: 'wrestling' };
+  }
+  if (looksTennis(r)) {
+    return { isMatch: true, category: 'tennis' };
   }
   if (looksPlayerProp(r, cfg.playerPropsOnly)) {
     return { isMatch: true, category: 'mlb' };
