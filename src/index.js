@@ -4,43 +4,62 @@ import { Storage } from './storage.js';
 import { TelegramNotifier, formatNotification } from './telegram.js';
 import { classifyBet } from './filter.js';
 
-function norm(s) { return (s || '').replace(/\s+/g, ' ').trim(); }
+function norm(s) {
+  return (s || '').replace(/\s+/g, ' ').trim();
+}
+
 function isLikelyOdds(s) {
   const n = Number(String(s).replace(/,/g, ''));
   return Number.isFinite(n) && n >= 1.001 && n <= 1000;
 }
-function isLikelyTime(s) { return /\b\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?\b/i.test(s); }
+
+function isLikelyTime(s) {
+  return /\b\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?\b/i.test(s);
+}
 
 function parseRow(raw) {
   const texts = raw.cells.map(x => norm(x.text));
   if (texts.length < 4) return null;
+  let event, user, time, odds, amount;
   if (texts.length >= 5) {
-    const [event, user, time, odds, amount] = texts.slice(0, 5);
-    return { event, user: user || 'Hidden', time, odds, amount, sport: raw.sport || '', rawText: raw.rowText };
+    [event, user, time, odds, amount] = texts.slice(0, 5);
+  } else {
+    time = texts.find(isLikelyTime) || '';
+    odds = texts.find(isLikelyOdds) || '';
+    event = texts[0] || '';
+    amount = texts.find((x, i) => i > 0 && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
+    user = texts.find(x => x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
   }
-  const time = texts.find(isLikelyTime) || '';
-  const odds = texts.find(isLikelyOdds) || '';
-  const event = texts[0] || '';
-  const amount = texts.find((x, i) => i > 0 && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
-  const user = texts.find(x => x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
-  return { event, user, time, odds, amount, sport: raw.sport || '', rawText: raw.rowText };
+  return {
+    rowIndex: raw.rowIndex,
+    event,
+    user: user || 'Hidden',
+    time,
+    odds,
+    amount,
+    sport: raw.sport || '',
+    icons: raw.icons || [],
+    rawText: raw.rowText,
+  };
 }
 
-function makeId(r) { return [r.event, r.user, r.time, r.odds, r.amount].map(norm).join(' | '); }
+function makeFingerprint(r) {
+  return [r.event, r.user, r.time, r.odds, r.amount].map(norm).join(' | ');
+}
 
 async function main() {
   console.log('='.repeat(62));
-  console.log(' ⚾ MLB High Roller Watcher (v2.0 Production Ready)');
+  console.log(' 🎾 Stake High Roller — Tennis Watcher');
   console.log('='.repeat(62));
-  console.log(`URL: ${CFG.url}`);
-  console.log(`Poll interval: ${CFG.pollMs}ms | Player props only: ${CFG.playerPropsOnly ? 'yes' : 'no'}`);
-  console.log(`Target CDP: ${CFG.cdpUrl || 'Headless Playwright'}`);
+  console.log(`Watching ${CFG.url}`);
+  console.log(`Poll: ${CFG.pollMs}ms | Target: ${CFG.targetSport.toUpperCase()} | Preview Details: ${CFG.previewDetails ? 'enabled' : 'disabled'}`);
+  console.log(`Telegram: ${CFG.telegramEnabled ? 'enabled' : 'disabled'}`);
 
   const storage = new Storage(CFG.logFile);
   const seen = storage.loadSeen();
-  console.log(`Storage loaded: ${seen.size} existing bet signatures from ${CFG.logFile}`);
+  console.log(`[INFO] Storage loaded: ${seen.size} existing bet signatures from ${CFG.logFile}`);
 
-  const notifier = new TelegramNotifier(CFG.botToken, CFG.chatId);
+  const notifier = new TelegramNotifier(CFG.botToken, CFG.chatId, CFG.telegramEnabled);
   if (notifier.enabled) {
     const verified = await notifier.verify();
     console.log(`Telegram Bot: ${verified ? '✅ Verified & Ready' : '⚠️ Token provided but getMe check failed'}`);
@@ -57,11 +76,14 @@ async function main() {
     let delay = 2000;
     while (true) {
       try {
+        console.log(`[INFO] Connecting to Chrome session at ${CFG.cdpUrl}...`);
         await browserManager.connect();
-        console.log(browserManager.attached ? '✅ Attached to Chrome session.' : 'Started a Playwright browser.');
+        console.log(`[INFO] Chrome connected.`);
+        console.log(`[INFO] Stake page loaded: ${CFG.url}`);
         return;
       } catch (err) {
-        console.error(`[CDP] Connection failed: ${err.message}. Retrying in ${delay / 1000}s...`);
+        console.warn(`[WARN] CDP connection failed: ${err.message}`);
+        console.log(`[INFO] Reconnecting in ${delay / 1000}s...`);
         await new Promise(r => setTimeout(r, delay));
         delay = Math.min(delay * 1.5, 15000);
       }
@@ -69,7 +91,7 @@ async function main() {
   }
 
   await ensureConnected();
-  await new Promise(r => setTimeout(r, 2000));
+  await new Promise(r => setTimeout(r, 1500));
 
   let initialized = false;
 
@@ -85,23 +107,52 @@ async function main() {
 
       if (!initialized) {
         for (const r of matches) {
-          const id = makeId(r);
-          if (id) seen.set(id, Date.now());
+          const fp = makeFingerprint(r);
+          if (fp) seen.set(fp, Date.now());
         }
         initialized = true;
-        console.log(`Initial sync complete: ${matches.length} active candidate rows seeded.`);
+        console.log(`[INFO] Current tennis rows: ${matches.length}`);
+        console.log(`[INFO] Initial sync complete: ${matches.length} existing tennis rows seeded.`);
+        console.log(`[INFO] Tennis watcher started.`);
       } else {
         for (const r of matches) {
-          const id = makeId(r);
-          if (!id || seen.has(id)) continue;
+          const fp = makeFingerprint(r);
+          if (!fp || seen.has(fp)) continue;
 
-          seen.set(id, Date.now());
+          // Attempt modal extraction for Bet ID & Payout if preview details is enabled
+          if (CFG.previewDetails && typeof r.rowIndex === 'number') {
+            const details = await browserManager.fetchRowDetails(r.rowIndex);
+            if (details) {
+              if (details.betId) r.betId = details.betId;
+              if (details.payout) r.payout = details.payout;
+            }
+          }
+
+          // If Bet ID is extracted and was already seen in past runs, skip
+          if (r.betId && seen.has(String(r.betId).trim())) {
+            seen.set(fp, Date.now());
+            continue;
+          }
+
+          const canonicalId = r.betId ? String(r.betId).trim() : fp;
+          seen.set(fp, Date.now());
+          if (r.betId) seen.set(canonicalId, Date.now());
+
           matchesCount++;
-          storage.append({ ...r, id });
+          storage.append({ ...r, id: canonicalId });
 
-          const msg = formatNotification(r, r.category);
-          console.log(`\n🚨 NEW BET DETECTED [${(r.category || 'BET').toUpperCase()}]!\n${msg}\n`);
+          console.log(`\n[INFO] New tennis bet detected`);
+          console.log(`  🎾 Event:  ${r.event}`);
+          console.log(`  👤 User:   ${r.user}`);
+          console.log(`  💰 Amount: ${r.amount}`);
+          console.log(`  📈 Odds:   ${r.odds}`);
+          console.log(`  🕐 Time:   ${r.time}`);
+          if (r.betId) console.log(`  🆔 Bet ID: ${r.betId}`);
+          if (r.payout) console.log(`  💵 Payout: ${r.payout}`);
+
+          const msg = formatNotification(r, 'tennis');
           await notifier.send(msg);
+          console.log(`[INFO] Telegram notification sent\n`);
         }
       }
 
@@ -114,16 +165,17 @@ async function main() {
         lastHeartbeat = Date.now();
       }
     } catch (e) {
-      console.error(`[WATCHER ERROR] ${new Date().toLocaleTimeString()}: ${e.message}`);
+      console.warn(`[WARN] Stake page unavailable / error: ${e.message}`);
+      console.warn(`[WARN] CDP connection lost`);
       await browserManager.disconnect();
       await ensureConnected();
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 2000));
     }
 
     await new Promise(r => setTimeout(r, CFG.pollMs));
   }
 }
 
-process.on('SIGINT', () => { console.log('\nShutting down cleanly...'); process.exit(0); });
-process.on('SIGTERM', () => { console.log('\nTerminating cleanly...'); process.exit(0); });
+process.on('SIGINT', () => { console.log('\n[INFO] Shutting down cleanly...'); process.exit(0); });
+process.on('SIGTERM', () => { console.log('\n[INFO] Terminating cleanly...'); process.exit(0); });
 main().catch(err => { console.error('Fatal crash:', err); process.exit(1); });

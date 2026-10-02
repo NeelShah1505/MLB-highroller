@@ -1,8 +1,8 @@
 {
-  "name": "stake-highroller-watcher",
+  "name": "stake-tennis-highroller-watcher",
   "version": "1.0.0",
   "private": true,
-  "description": "Monitors Stake High Rollers for MLB player-prop rows and sends one Telegram notification per newly seen bet.",
+  "description": "Monitors Stake High Rollers table via CDP for Tennis bets and dispatches real-time Telegram notifications.",
   "author": "Neel Shah <neelshah@noreply.github.com>",
   "type": "module",
   "scripts": {

@@ -1,4 +1,28 @@
-export function formatNotification(r, category = 'mlb') {
+export function formatNotification(r, category = 'tennis') {
+  if (category === 'tennis' || r.category === 'tennis') {
+    const lines = [
+      '🎾 *TENNIS HIGH ROLLER*',
+      '',
+      `👤 *User:* \`${r.user || 'Hidden'}\``,
+      `🎾 *Event:* \`${r.event || '—'}\``,
+      `💰 *Amount:* \`${r.amount || '—'}\``,
+      `📈 *Odds:* \`${r.odds || '—'}\``,
+      `🕐 *Time:* \`${r.time || '—'}\``,
+    ];
+
+    if (r.market && r.market !== r.event) {
+      lines.push(`🎯 *Market:* \`${r.market}\``);
+    }
+    if (r.payout) {
+      lines.push(`💵 *Payout:* \`${r.payout}\``);
+    }
+    if (r.betId) {
+      lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
+    }
+
+    return lines.join('\n');
+  }
+
   if (category === 'wrestling' || r.category === 'wrestling') {
     return [
       '🤼 *Specials / Pro Wrestling Bet Alert*',
@@ -22,10 +46,10 @@ export function formatNotification(r, category = 'mlb') {
 }
 
 export class TelegramNotifier {
-  constructor(botToken, chatId) {
+  constructor(botToken, chatId, enabled = true) {
     this.botToken = botToken;
     this.chatId = chatId;
-    this.enabled = Boolean(botToken && chatId);
+    this.enabled = Boolean(enabled && botToken && chatId);
   }
 
   async verify() {
@@ -68,7 +92,7 @@ export class TelegramNotifier {
           throw new Error(`HTTP ${res.status}: ${errText}`);
         }
 
-        return; // Success
+        return;
       } catch (err) {
         if (attempt === retries) {
           console.error(`[TELEGRAM] Failed after ${retries} attempts: ${err.message}`);

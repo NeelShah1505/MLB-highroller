@@ -1,37 +1,37 @@
-# MLB High Roller Watcher
 
-A Node.js + Playwright watcher that reads Stake's High Rollers table from a normal Chrome session and sends newly detected MLB player-prop candidates to Telegram.
+# Stake High Roller — Tennis Watcher
+
+A resilient Node.js + Playwright watcher that monitors Stake's High Rollers table via Chrome DevTools Protocol (CDP) and sends instant Telegram alerts for **Tennis High Roller bets only**.
 
 > This project does not place bets or provide betting recommendations. It forwards detected High Roller information to Telegram.
 
-> Stake's terms may restrict automated capture/analysis of website content. Use the project only where permitted. Do not bypass CAPTCHA, Cloudflare, bot checks, access controls, or other security mechanisms. Human verification is completed manually in a normal Chrome session.
-
 ## What it does
 
-For each newly detected candidate row, the watcher sends:
+For each newly detected Tennis High Roller bet, the watcher dispatches:
 
-- Player/event text
-- Odds
-- Bet amount
-- Username (or `Hidden` when Stake displays that)
-- Time shown by Stake
+- 👤 User: Username (or `Hidden`)
+- 🎾 Event: Tournament / Player match
+- 💰 Amount: Bet amount in original currency
+- 📈 Odds: Decimal odds
+- 🕐 Time: Timestamp shown on Stake
+- 🆔 Bet ID: Extracted from detail modal (when `PREVIEW_DETAILS=true`)
 
-The watcher polls every 2 seconds by default. Rows already visible when the process starts are seeded and are not sent as alerts, preventing a burst of historical notifications after a restart.
+The watcher polls every 1000ms by default (`POLL_MS=1000`). Existing rows present when the process starts are seeded during initial sync to prevent spamming Telegram with historical bets.
 
-## Current detection logic
+## Tennis Detection Logic
 
-The High Rollers row exposes the sport through Stake's icon/data attributes. The watcher first limits candidates to baseball rows. It then uses a conservative player-prop heuristic: obvious game-level matchups such as `Team A - Team B` and multi bets are ignored, while single-event baseball rows are treated as player-prop candidates.
-
-This is a heuristic, not a guaranteed market-level classifier. The current version does not open the individual bet preview to verify the exact market type.
+The watcher strictly isolates Tennis bets:
+- Matches sport icon `data-ds-icon="Tennis"`.
+- Explicitly rejects non-tennis sports (Soccer, Basketball, Cricket, Baseball, Ice Hockey, Specials/Wrestling, etc.).
+- Explicitly rejects **Table Tennis** (`TableTennis`).
+- Explicitly rejects **Multi bets** (`BetMulti`, `Multi (x)`).
 
 ## Requirements
 
-- macOS, Linux, or Windows 10/11
+- Linux (Ubuntu 22.04/24.04 LTS VPS recommended) or macOS / Windows 10/11
 - Node.js LTS (v18+)
-- Google Chrome
-- Telegram
-- A Telegram bot created with `@BotFather`
-- Internet access
+- Google Chrome / Chromium with remote debugging port (`--remote-debugging-port=9222`)
+- Telegram bot token and chat ID
 
 ## Installation
 
@@ -40,94 +40,38 @@ npm install
 npm test
 ```
 
-## Start the dedicated Chrome session
-
-The watcher attaches to Chrome over the Chrome DevTools Protocol (CDP).
-
-### On macOS:
-```bash
-./scripts/start-chrome.sh
-```
-
-### On Windows:
-```bat
-scripts\start-chrome.bat
-```
-
-Or manually:
-- **macOS:**
-  ```bash
-  open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir="$HOME/Library/Application Support/StakeHighRollerChrome" "https://stake.jp/sports/high/all"
-  ```
-- **Windows:**
-  ```bat
-  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\StakeHighRollerChrome"
-  ```
-
-In that Chrome window open:
-
-<https://stake.jp/sports/high/all>
-
-Complete any normal human verification manually. Do not bypass security checks.
-
-## Configure Telegram
-
-1. Open `@BotFather`.
-2. Create or select your Telegram bot.
-3. Obtain the bot token.
-4. Open the **bot itself**, not BotFather, and send `/start`.
-5. In the repo folder run:
-
-```powershell
-npm run setup-telegram
-```
-
-Paste the token into the terminal when prompted. The setup script discovers the chat ID and writes a local `.env`.
-
-Never commit `.env` or share the bot token.
-
-## Start the watcher
-
-```powershell
-npm start
-```
-
-Typical startup:
-
-```text
-Watching https://stake.jp/sports/high/all
-Poll: 2000ms | Player props only: yes
-Telegram: enabled
-Attached to an existing Chrome session.
-Initial sync complete: ... existing candidate rows seeded.
-```
-
-Leave the dedicated Chrome window and Command Prompt running during the laptop-based setup. Telegram itself can be closed because Telegram delivers bot messages to your phone independently.
-
 ## Configuration
 
-Copy `.env.example` to `.env` if configuring manually:
+Configure `.env` (copy from `.env.example`):
 
 ```dotenv
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
 CDP_URL=http://127.0.0.1:9222
-STAKE_URL=https://stake.jp/sports/high/all
+POLL_MS=1000
+
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=8957540925:AAEMwVj0M7J7bNFeFyRck3Ncsd840FIsvKg
+TELEGRAM_CHAT_ID=5167354900
+
 PLAYER_PROPS_ONLY=true
-POLL_MS=2000
+PREVIEW_DETAILS=true
+
+STAKE_URL=https://stake.jp/sports/high/all
+TARGET_SPORT=tennis
 DEBUG=true
 LOG_FILE=data/bets.jsonl
 ```
 
-## Notification example
+## Notification Example
 
 ```text
-⚾ MLB Player Prop
-Player: Jordan Alvarez
-Odds: 3.05
-Amount: MX$50,000
-User: Hidden
-Time: 5:13 AM
+🎾 TENNIS HIGH ROLLER
+
+👤 User: Hidden
+🎾 Event: Valentin Royer
+💰 Amount: ₹67,425.00
+📈 Odds: 2.15
+🕐 Time: 10:24 AM
+🆔 Bet ID: 661868490
 ```
 
 ## Running 24/7 Continuously

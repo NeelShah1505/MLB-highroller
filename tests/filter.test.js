@@ -1,50 +1,109 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { looksBaseball, looksPlayerProp, looksProWrestling, classifyBet } from '../src/filter.js';
+import { looksTennis, classifyBet } from '../src/filter.js';
 
-test('looksBaseball detects MLB and baseball keywords', () => {
-  assert.equal(looksBaseball({ sport: 'Baseball', rawText: 'Yankees - Red Sox' }), true);
-  assert.equal(looksBaseball({ sport: 'Soccer', rawText: 'Man City - Arsenal' }), false);
-});
-
-test('looksPlayerProp preserves original MLB single-event heuristic', () => {
-  assert.equal(looksPlayerProp({ sport: 'Baseball', event: 'Aaron Judge', rawText: 'Baseball' }, true), true);
-  assert.equal(looksPlayerProp({ sport: 'Baseball', event: 'Yankees - Red Sox', rawText: 'Baseball' }, true), false);
-  assert.equal(looksPlayerProp({ sport: 'Baseball', event: 'Multi (3)', rawText: 'Baseball' }, true), false);
-});
-
-test('looksProWrestling detects Specials and Wrestling bets', () => {
-  assert.equal(looksProWrestling({
-    sport: 'Specials',
-    event: 'Roman Reigns',
-    rawText: 'Specials Roman Reigns 1.10 $10,000'
+test('looksTennis detects Tennis rows from sport icon or row text', () => {
+  // 1. Tennis row with icon
+  assert.equal(looksTennis({
+    sport: 'Tennis',
+    icons: ['Tennis', 'AnonymousFilled', 'USDT'],
+    event: 'Daniil Medvedev - Valentin Royer',
+    rawText: 'Daniil Medvedev - Valentin Royer Hidden 11:44 AM 1.09 $2,819.86',
   }), true);
 
-  assert.equal(looksProWrestling({
-    sport: 'ProWrestling',
-    event: '2027 Men\'s Royal Rumble Match Winner',
-    rawText: 'Pro Wrestling 2027 Men\'s Royal Rumble Match Winner'
+  // 2. Tennis row with single player / event
+  assert.equal(looksTennis({
+    sport: 'Tennis',
+    icons: ['Tennis', 'AnonymousFilled', 'USDC'],
+    event: 'Valentin Royer',
+    rawText: 'Valentin Royer Hidden 10:24 AM 2.15 ₹67,425',
   }), true);
+});
 
-  assert.equal(looksProWrestling({
+test('looksTennis strictly ignores non-tennis sports', () => {
+  // Table Tennis must be rejected
+  assert.equal(looksTennis({
+    sport: 'TableTennis',
+    icons: ['TableTennis', 'AnonymousFilled', 'USDC'],
+    event: 'Mleczko - Piotrowski',
+    rawText: 'TableTennis Mleczko - Piotrowski',
+  }), false);
+
+  // Soccer must be rejected
+  assert.equal(looksTennis({
     sport: 'Soccer',
+    icons: ['Soccer'],
     event: 'Real Madrid - Barcelona',
-    rawText: 'Soccer Real Madrid - Barcelona'
+    rawText: 'Soccer Real Madrid - Barcelona',
+  }), false);
+
+  // Basketball must be rejected
+  assert.equal(looksTennis({
+    sport: 'Basketball',
+    icons: ['Basketball'],
+    event: 'Lakers - Celtics',
+    rawText: 'Basketball Lakers - Celtics',
+  }), false);
+
+  // Cricket must be rejected
+  assert.equal(looksTennis({
+    sport: 'Cricket',
+    icons: ['Cricket'],
+    event: 'India - Australia',
+    rawText: 'Cricket India - Australia',
+  }), false);
+
+  // Baseball must be rejected in tennis mode
+  assert.equal(looksTennis({
+    sport: 'Baseball',
+    icons: ['Baseball'],
+    event: 'Aaron Judge - Home Run',
+    rawText: 'Baseball Aaron Judge',
+  }), false);
+
+  // Pro Wrestling / Specials must be rejected
+  assert.equal(looksTennis({
+    sport: 'Specials',
+    icons: ['Specials'],
+    event: 'Roman Reigns',
+    rawText: 'Specials Roman Reigns',
+  }), false);
+
+  // Multi bets must be rejected
+  assert.equal(looksTennis({
+    sport: 'Tennis',
+    icons: ['BetMulti'],
+    event: 'Multi (3)',
+    rawText: 'Multi (3) Hidden 11:42 AM 2.24 $4,996.00',
   }), false);
 });
 
-test('classifyBet correctly categorizes bets into buckets', () => {
-  const mlbBet = { sport: 'Baseball', event: 'Shohei Ohtani', rawText: 'Baseball Shohei Ohtani' };
-  const mlbMatch = classifyBet(mlbBet, { playerPropsOnly: true });
-  assert.equal(mlbMatch.isMatch, true);
-  assert.equal(mlbMatch.category, 'mlb');
+test('classifyBet in tennis mode only matches tennis bets', () => {
+  const tennisBet = {
+    sport: 'Tennis',
+    icons: ['Tennis', 'AnonymousFilled', 'USDT'],
+    event: 'Daniil Medvedev - Valentin Royer',
+    rawText: 'Daniil Medvedev - Valentin Royer',
+  };
+  const tennisResult = classifyBet(tennisBet, { targetSport: 'tennis', playerPropsOnly: true });
+  assert.equal(tennisResult.isMatch, true);
+  assert.equal(tennisResult.category, 'tennis');
 
-  const wrestlingBet = { sport: 'Specials', event: 'Money in the Bank: Roman Reigns', rawText: 'Specials Money in the Bank' };
-  const wrestlingMatch = classifyBet(wrestlingBet, { playerPropsOnly: true });
-  assert.equal(wrestlingMatch.isMatch, true);
-  assert.equal(wrestlingMatch.category, 'wrestling');
+  const soccerBet = {
+    sport: 'Soccer',
+    icons: ['Soccer'],
+    event: 'Arsenal - Chelsea',
+    rawText: 'Soccer Arsenal - Chelsea',
+  };
+  const soccerResult = classifyBet(soccerBet, { targetSport: 'tennis', playerPropsOnly: true });
+  assert.equal(soccerResult.isMatch, false);
 
-  const soccerBet = { sport: 'Soccer', event: 'Arsenal - Chelsea', rawText: 'Soccer' };
-  const soccerMatch = classifyBet(soccerBet, { playerPropsOnly: true });
-  assert.equal(soccerMatch.isMatch, false);
+  const tableTennisBet = {
+    sport: 'TableTennis',
+    icons: ['TableTennis'],
+    event: 'Player A - Player B',
+    rawText: 'TableTennis',
+  };
+  const tableTennisResult = classifyBet(tableTennisBet, { targetSport: 'tennis', playerPropsOnly: true });
+  assert.equal(tableTennisResult.isMatch, false);
 });
