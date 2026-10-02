@@ -62,14 +62,14 @@ export function looksPlayerProp(r, playerPropsOnly = true) {
 }
 
 const WRESTLING_KEYWORDS = [
-  'wrestling', 'pro wrestling', 'wwe', 'aew', 'royal rumble',
+  'wrestl', 'pro wrestling', 'wwe', 'aew', 'royal rumble',
   'money in the bank', 'wrestlemania', 'summer slam', 'summerslam',
   'survivor series', 'elimination chamber', 'crown jewel', 'bad blood',
   'world heavyweight', 'wwe championship', 'universal championship',
   'intercontinental championship', 'united states championship',
   'women\'s world championship', 'women\'s championship', 'tag team championship',
   'match winner', 'royal rumble winner', 'royal rumble match winner',
-  'roman reigns', 'cody rhodes', 'gunther', 'bron breakker', 'oba femi',
+  'roman reigns', 'cody rhodes', 'gunther', 'bron breakker', 'oba femi', 'bronson reed',
   'kevin owens', 'trick williams', 'la knight', 'seth rollins', 'cm punk',
   'rhea ripley', 'john cena', 'the rock', 'dwayne johnson', 'logan paul',
   'drew mcintyre', 'damian priest', 'jey uso', 'jimmy uso', 'solo sikoa',
@@ -109,15 +109,15 @@ export function looksProWrestling(r) {
   }
 
   // 3. Positive match on Sport / Icon
-  if (sport.includes('wrestling') || sport.includes('prowrestling') || sport.includes('wwe') || sport.includes('aew')) {
+  if (sport.includes('wrestl') || sport.includes('wwe') || sport.includes('aew')) {
     return true;
   }
   if (Array.isArray(r.icons) && r.icons.some(i => ['Wrestling', 'ProWrestling', 'WWE', 'AEW'].includes(i))) {
     return true;
   }
 
-  // 4. Matches if the row/event says "Pro Wrestling" (critical requirement from handoff)
-  if (event.includes('pro wrestling') || event === 'wrestling' || raw.includes('pro wrestling')) {
+  // 4. Matches truncated "Pro Wrestli..." or full "Pro Wrestling" or "Wrestling" in row/event
+  if (/pro\s*wrestl/i.test(hay) || /\bwrestl/i.test(hay) || event.includes('pro wrestling') || raw.includes('pro wrestling')) {
     return true;
   }
 
@@ -135,6 +135,34 @@ export function parseAmount(s) {
   const cleaned = String(s).replace(/[^\d.]/g, '');
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Normalizes any currency string into USD equivalent.
+ * Ensures Rule 1 evaluates against true $199,000 USD regardless of whether
+ * the user's Stake interface renders in INR (₹), EUR (€), GBP (£), or USD ($).
+ */
+export function parseUsdAmount(s) {
+  if (typeof s === 'number') return s;
+  if (!s) return 0;
+  const str = String(s);
+  const cleaned = str.replace(/[^\d.]/g, '');
+  const n = parseFloat(cleaned);
+  if (!Number.isFinite(n)) return 0;
+
+  if (str.includes('₹')) {
+    return n / 86.5; // Convert INR (₹) to approximate USD
+  }
+  if (str.includes('€')) {
+    return n * 1.08; // Convert EUR (€) to USD
+  }
+  if (str.includes('£')) {
+    return n * 1.28; // Convert GBP (£) to USD
+  }
+  if (str.includes('¥')) {
+    return n / 155; // Convert JPY (¥) to USD
+  }
+  return n;
 }
 
 export function parseOdds(s) {
@@ -163,7 +191,7 @@ export function formatSportName(rawSport, icons = [], event = '') {
  *
  * RULE 1 — All Sports High Rollers:
  *   - Monitor ALL sports/categories.
- *   - Notify ONLY when: Stake > $199,000 AND Decimal Odds > 1.50.
+ *   - Notify ONLY when: Stake > $199,000 USD AND Decimal Odds > 1.50.
  *
  * RULE 2 — Pro Wrestling:
  *   - Notify for EVERY Pro Wrestling bet, regardless of stake or odds.
@@ -179,11 +207,11 @@ export function classifyBet(r, cfg = {}) {
     };
   }
 
-  // RULE 1: All Sports High Rollers - Stake > $199,000 AND Decimal Odds > 1.50
-  const amount = parseAmount(r.amount);
+  // RULE 1: All Sports High Rollers - Stake > $199,000 USD AND Decimal Odds > 1.50
+  const usdAmount = parseUsdAmount(r.amount);
   const odds = parseOdds(r.odds);
 
-  if (amount > 199000 && odds > 1.50) {
+  if (usdAmount > 199000 && odds > 1.50) {
     return {
       isMatch: true,
       category: 'highroller',

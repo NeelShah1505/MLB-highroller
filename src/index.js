@@ -101,10 +101,29 @@ async function main() {
   await new Promise(r => setTimeout(r, 1500));
 
   let initialized = false;
+  let emptyPolls = 0;
 
   while (true) {
     try {
+      if (browserManager.page && !browserManager.page.url().includes('/sports/high')) {
+        console.warn(`[WARN] Page navigated away to ${browserManager.page.url()}. Returning to ${CFG.url}...`);
+        await browserManager.page.goto(CFG.url, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+      }
+
       const rawRows = await browserManager.extractRows();
+      if (!rawRows || rawRows.length === 0) {
+        emptyPolls++;
+        if (emptyPolls >= 15) {
+          console.warn('[WARN] No table rows detected for 15 seconds. Reloading Stake page...');
+          if (browserManager.page) {
+            await browserManager.page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+          }
+          emptyPolls = 0;
+        }
+      } else {
+        emptyPolls = 0;
+      }
+
       const parsed = rawRows.map(parseRow).filter(Boolean);
       const matches = parsed.map(r => {
         const res = classifyBet(r, CFG);
@@ -127,7 +146,7 @@ async function main() {
           const fp = makeFingerprint(r);
           if (!fp || seen.has(fp)) continue;
 
-          // Attempt modal extraction for Selection, Event, Market, Bet ID & Payout
+          // Attempt modal extraction for Selection, Event, Market, Bet ID, Time & Payout
           if (CFG.previewDetails && typeof r.rowIndex === 'number') {
             const details = await browserManager.fetchRowDetails(r.rowIndex);
             if (details) {
@@ -136,6 +155,8 @@ async function main() {
               if (details.selection) r.selection = details.selection;
               if (details.event) r.event = details.event;
               if (details.market) r.market = details.market;
+              if (details.time) r.time = details.time;
+              if (details.user && (!r.user || r.user === 'Hidden')) r.user = details.user;
             }
           }
 

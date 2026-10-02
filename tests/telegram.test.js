@@ -53,6 +53,35 @@ test('formatNotification formats Pro Wrestling high roller with exact 1-to-8 seq
   assert.ok(text.includes('881923145'));
 });
 
+test('formatNotification formats Oba Femi live bet from Stake screenshot with exact 1-to-8 sequence', () => {
+  const bet = {
+    sportName: 'Pro Wrestling',
+    user: '⭐ Elinio777',
+    selection: 'Oba Femi',
+    event: 'Money in the Bank 2026: Oba Femi vs Bronson Reed',
+    market: 'Match Winner',
+    amount: '₹1,19,593.85 ₿',
+    odds: '1.25',
+    time: '10/1/2026 at 12:53 AM',
+    payout: '₹1,49,492.32 ₿',
+    betId: '661,868,490',
+    category: 'wrestling',
+  };
+  const text = formatNotification(bet, 'wrestling');
+  assert.ok(text.includes('🤼 *PRO WRESTLING BET ALERT*'));
+  assert.ok(text.includes('1️⃣ *Sport/Type:* `Pro Wrestling`'));
+  assert.ok(text.includes('2️⃣ *Username:* `⭐ Elinio777`'));
+  assert.ok(text.includes('3️⃣ *Selection:* `Oba Femi`'));
+  assert.ok(text.includes('4️⃣ *Event:* `Money in the Bank 2026: Oba Femi vs Bronson Reed`'));
+  assert.ok(text.includes('5️⃣ *Market:* `Match Winner`'));
+  assert.ok(text.includes('6️⃣ *Stake:* `₹1,19,593.85 ₿`'));
+  assert.ok(text.includes('7️⃣ *Odds:* `1.25`'));
+  assert.ok(text.includes('8️⃣ *Time:* `10/1/2026 at 12:53 AM`'));
+  assert.ok(text.includes('⚡ *Live Detected:*'));
+  assert.ok(text.includes('💵 *Payout:* `₹1,49,492.32 ₿`'));
+  assert.ok(text.includes('🆔 *Bet ID:* `661,868,490`'));
+});
+
 test('TelegramNotifier respects enabled flag', () => {
   const disabledNotifier = new TelegramNotifier('token', 'chatId', false);
   assert.equal(disabledNotifier.enabled, false);

@@ -198,4 +198,35 @@ test('classifyBet strictly applies Rule 1 and Rule 2 based on Naksh specificatio
   const w3 = classifyBet({ sport: 'Wrestling', amount: '$250,000', odds: '1.20', event: 'Royal Rumble Match Winner' });
   assert.equal(w3.isMatch, true);
   assert.equal(w3.category, 'wrestling');
+
+  // Screenshot 1 & 2 Live Example: Truncated "Pro Wrestli..." with Oba Femi
+  const liveBet = classifyBet({
+    sport: '',
+    icons: ['Unknown', 'Bitcoin'],
+    event: 'Pro Wrestli...',
+    rawText: 'Pro Wrestli...\t⭐ Elinio777\t12:53 AM\t1.25\t₹1,19,593.85',
+    amount: '₹1,19,593.85',
+    odds: '1.25'
+  });
+  assert.equal(liveBet.isMatch, true);
+  assert.equal(liveBet.category, 'wrestling');
+
+  // Currency Normalization check: ₹1,19,593 INR is ~$1,382 USD - must NOT trigger Rule 1 for non-wrestling sport
+  const nonWrestlingInr = classifyBet({
+    sport: 'Soccer',
+    event: 'Real Madrid - Barcelona',
+    amount: '₹1,19,593.85',
+    odds: '2.00'
+  });
+  assert.equal(nonWrestlingInr.isMatch, false);
+
+  // But ₹2,00,00,000 INR (~$230k USD) with odds > 1.50 MUST trigger Rule 1
+  const whaleInr = classifyBet({
+    sport: 'Soccer',
+    event: 'Real Madrid - Barcelona',
+    amount: '₹2,00,00,000.00',
+    odds: '1.80'
+  });
+  assert.equal(whaleInr.isMatch, true);
+  assert.equal(whaleInr.category, 'highroller');
 });

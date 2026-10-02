@@ -74,39 +74,70 @@ export class BrowserManager {
         const text = modal.innerText || '';
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-        // Match Bet ID e.g., Bet ID: 661868490 or Bet ID\n661868490 or #123456789
-        const betIdMatch = text.match(/(?:bet\s*id|id)\s*[:#]?\s*(\d{6,15})/i) || text.match(/\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\b/i);
-        // Match Payout / Return e.g., Payout: ₹123,456
-        const payoutMatch = text.match(/(?:payout|return|win)\s*[:#]?\s*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
-        // Match Stake / Amount
-        const stakeMatch = text.match(/(?:stake|amount|bet)\s*[:#]?\s*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
+        // Match Bet ID e.g., Bet ID: 661,868,490 or Bet ID: 661868490
+        const betIdMatch = text.match(/(?:bet\s*id|id)\s*[:#]?\s*([\d,]+)/i) || text.match(/\b([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\b/i);
+        const betId = betIdMatch ? (betIdMatch[1].includes('-') ? betIdMatch[1] : betIdMatch[1].replace(/,/g, '')) : null;
+
+        // Match Payout / Return e.g., Payout: ₹149,492.32
+        const payoutMatch = text.match(/(?:payout|return|win)\s*[:#\n\s]*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
+        // Match Stake / Amount e.g., Stake ₹119,593.85
+        const stakeMatch = text.match(/(?:stake|amount|bet)\s*[:#\n\s]*([$€£₹₽₺₴₦₱₫₩฿₮₲₵₡][\d,]+(?:\.\d+)?)/i);
+
+        // Match exact Time / Date from modal e.g. "10/1/2026 at 12:53 AM"
+        const timeMatch = text.match(/(\d{1,2}\/\d{1,2}\/\d{4}(?:\s+at\s+|\s+)\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/i);
+
+        // Match username if present in modal: "Placed by ⭐ Elinio777"
+        const userMatch = text.match(/Placed\s+by\s+([^\n]+)/i);
 
         let selection = null;
         let event = null;
         let market = null;
 
+        const betIdIdx = lines.findIndex(l => /bet\s*id/i.test(l));
+        if (betIdIdx !== -1 && lines[betIdIdx + 1]) {
+          selection = lines[betIdIdx + 1];
+          let nextIdx = betIdIdx + 2;
+          if (lines[nextIdx] && /^\d+(?:\.\d+)?$/.test(lines[nextIdx])) {
+            nextIdx++;
+          }
+          if (lines[nextIdx]) {
+            event = lines[nextIdx];
+            nextIdx++;
+          }
+          if (lines[nextIdx] && !lines[nextIdx].toLowerCase().startsWith('about') && !lines[nextIdx].toLowerCase().startsWith('stake')) {
+            market = lines[nextIdx];
+          }
+        }
+
         const headings = [...modal.querySelectorAll('h1, h2, h3, h4, h5, h6, [class*="heading"], [class*="title"]')].map(el => el.innerText.trim()).filter(Boolean);
-        if (headings.length > 0) {
+        if (!selection && headings.length > 0) {
           selection = headings[0];
           if (headings.length > 1) market = headings[1];
         }
 
         const eventLine = lines.find(l => /(?:royal rumble|wrestlemania|summerslam|money in the bank|survivor series|elimination chamber|wwe|aew)/i.test(l));
-        if (eventLine) event = eventLine;
+        if (eventLine && (!event || event.length < 5)) event = eventLine;
 
         return {
-          betId: betIdMatch ? betIdMatch[1] : null,
+          betId: betId || null,
+          time: timeMatch ? timeMatch[1] : null,
+          user: userMatch ? userMatch[1].trim() : null,
           payout: payoutMatch ? payoutMatch[1] : null,
           stake: stakeMatch ? stakeMatch[1] : null,
           selection: selection && selection.length < 100 ? selection : null,
-          event: event && event.length < 100 ? event : null,
+          event: event && event.length < 120 ? event : null,
           market: market && market.length < 100 ? market : null,
         };
       });
 
-      // Dismiss modal by pressing Escape
-      await this.page.keyboard.press('Escape').catch(() => {});
-      await this.page.waitForTimeout(100).catch(() => {});
+      // Dismiss modal by clicking close button or pressing Escape
+      const closeBtn = this.page.locator('[role="dialog"] button[aria-label="Close"], [role="dialog"] button[data-testid="close-button"], [role="dialog"] button:has(svg)').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click().catch(() => {});
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+      await this.page.waitForTimeout(50).catch(() => {});
 
       return details;
     } catch {
