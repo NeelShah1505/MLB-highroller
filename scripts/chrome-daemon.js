@@ -25,7 +25,7 @@ let chromeProcess = null;
 setTimeout(() => {
   console.log('[CHROME DAEMON] Launching Google Chrome with CDP on port 9222...');
 
-  const env = { ...process.env, DISPLAY: ':99' };
+  const env = { ...process.env, DISPLAY: ':99', TZ: 'Asia/Kolkata' };
   chromeProcess = spawn('google-chrome', [
     '--remote-debugging-port=9222',
     '--remote-debugging-address=0.0.0.0',

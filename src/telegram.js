@@ -1,5 +1,13 @@
 export function formatNotification(r, category = 'tennis') {
   if (category === 'tennis' || r.category === 'tennis') {
+    const liveTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: true,
+    }).format(new Date());
+
     const lines = [
       '🎾 *TENNIS HIGH ROLLER*',
       '',
@@ -7,7 +15,8 @@ export function formatNotification(r, category = 'tennis') {
       `🎾 *Event:* \`${r.event || '—'}\``,
       `💰 *Amount:* \`${r.amount || '—'}\``,
       `📈 *Odds:* \`${r.odds || '—'}\``,
-      `🕐 *Time:* \`${r.time || '—'}\``,
+      `🕐 *Stake Time:* \`${r.time || '—'}\``,
+      `⚡ *Live Detected:* \`${liveTime} IST\``,
     ];
 
     if (r.market && r.market !== r.event) {
