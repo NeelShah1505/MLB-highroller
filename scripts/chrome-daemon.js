@@ -3,10 +3,9 @@ import process from 'node:process';
 
 console.log('[CHROME DAEMON] Initializing Xvfb virtual display and Chrome on port 9222...');
 
-// 1. Clean up old locks
+// 1. Clean up old locks and kill ONLY exact binary names google-chrome and Xvfb
 try {
-  execSync('pkill -9 -f "chrome" 2>/dev/null || true');
-  execSync('pkill -9 -f "Xvfb :99" 2>/dev/null || true');
+  execSync('killall -9 google-chrome chrome-sandbox Xvfb 2>/dev/null || true');
   execSync('rm -f /tmp/.X99-lock /tmp/.X11-unix/X99 2>/dev/null || true');
 } catch {}
 
@@ -20,12 +19,14 @@ xvfb.on('error', (err) => {
   console.error('[CHROME DAEMON] Xvfb error:', err);
 });
 
+let chromeProcess = null;
+
 // 3. Launch Google Chrome after a short delay for Xvfb
 setTimeout(() => {
   console.log('[CHROME DAEMON] Launching Google Chrome with CDP on port 9222...');
 
   const env = { ...process.env, DISPLAY: ':99' };
-  const chrome = spawn('google-chrome', [
+  chromeProcess = spawn('google-chrome', [
     '--remote-debugging-port=9222',
     '--user-data-dir=/root/.stake-chrome',
     '--no-sandbox',
@@ -38,20 +39,23 @@ setTimeout(() => {
     stdio: 'inherit'
   });
 
-  chrome.on('error', (err) => {
+  chromeProcess.on('error', (err) => {
     console.error('[CHROME DAEMON] Failed to start Chrome:', err);
     process.exit(1);
   });
 
-  chrome.on('exit', (code, signal) => {
+  chromeProcess.on('exit', (code, signal) => {
     console.warn(`[CHROME DAEMON] Chrome exited (code=${code}, signal=${signal}). PM2 will restart.`);
     process.exit(code || 1);
   });
 }, 1500);
 
 function cleanup() {
-  try { execSync('pkill -9 -f "chrome" 2>/dev/null || true'); } catch {}
-  try { execSync('pkill -9 -f "Xvfb :99" 2>/dev/null || true'); } catch {}
+  try {
+    if (chromeProcess) chromeProcess.kill('SIGKILL');
+    if (xvfb) xvfb.kill('SIGKILL');
+    execSync('killall -9 google-chrome Xvfb 2>/dev/null || true');
+  } catch {}
   process.exit(0);
 }
 
