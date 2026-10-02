@@ -28,10 +28,13 @@ setTimeout(() => {
   const env = { ...process.env, DISPLAY: ':99' };
   chromeProcess = spawn('google-chrome', [
     '--remote-debugging-port=9222',
+    '--remote-debugging-address=0.0.0.0',
     '--user-data-dir=/root/.stake-chrome',
     '--no-sandbox',
     '--disable-gpu',
     '--disable-dev-shm-usage',
+    '--no-first-run',
+    '--no-default-browser-check',
     '--window-size=1920,1080',
     'https://stake.jp/sports/high/all'
   ], {
