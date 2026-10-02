@@ -2,7 +2,7 @@ import { CFG } from './config.js';
 import { BrowserManager } from './browser.js';
 import { Storage } from './storage.js';
 import { TelegramNotifier, formatNotification } from './telegram.js';
-import { classifyBet } from './filter.js';
+import { classifyBet, formatSportName } from './filter.js';
 
 function norm(s) {
   return (s || '').replace(/\s+/g, ' ').trim();
@@ -30,8 +30,11 @@ function parseRow(raw) {
     amount = texts.find((x, i) => i > 0 && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
     user = texts.find(x => x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
   }
+  const sportName = formatSportName(raw.sport, raw.icons || [], event);
+
   return {
     rowIndex: raw.rowIndex,
+    sportName,
     event,
     user: user || 'Hidden',
     time,
@@ -49,11 +52,15 @@ function makeFingerprint(r) {
 
 async function main() {
   console.log('='.repeat(62));
-  console.log(' 🤼 Stake High Roller — Pro Wrestling Watcher');
+  console.log(' 👑 Stake High Roller Watcher (Dual Rules Active)');
   console.log('='.repeat(62));
   console.log(`Watching ${CFG.url}`);
-  console.log(`Poll: ${CFG.pollMs}ms | Mode: PRO WRESTLING ONLY | Preview details: ${CFG.previewDetails ? 'yes' : 'no'}`);
+  console.log(`Poll: ${CFG.pollMs}ms | Preview details: ${CFG.previewDetails ? 'yes' : 'no'}`);
   console.log(`Telegram: ${CFG.telegramEnabled ? 'enabled' : 'disabled'}`);
+  console.log('Active Notification Rules:');
+  console.log('  1. ALL SPORTS: Stake > $199,000 AND Decimal Odds > 1.50');
+  console.log('  2. PRO WRESTLING: All bets (any stake, any odds)');
+  console.log('='.repeat(62));
 
   const storage = new Storage(CFG.logFile);
   const seen = storage.loadSeen();
@@ -101,7 +108,7 @@ async function main() {
       const parsed = rawRows.map(parseRow).filter(Boolean);
       const matches = parsed.map(r => {
         const res = classifyBet(r, CFG);
-        return res.isMatch ? { ...r, category: res.category } : null;
+        return res.isMatch ? { ...r, category: res.category, rule: res.rule } : null;
       }).filter(Boolean);
       pollCount++;
 
@@ -112,9 +119,9 @@ async function main() {
         }
         initialized = true;
         console.log(`[]`);
-        console.log(`Current Pro Wrestling rows: ${matches.length}`);
-        console.log(`Initial sync complete: ${matches.length} existing Pro Wrestling rows seeded.`);
-        console.log(`[INFO] Pro Wrestling watcher started.`);
+        console.log(`Current qualifying rows: ${matches.length}`);
+        console.log(`Initial sync complete: ${matches.length} existing qualifying rows seeded.`);
+        console.log(`[INFO] Watcher started — live monitoring on ${CFG.pollMs}ms polling.`);
       } else {
         for (const r of matches) {
           const fp = makeFingerprint(r);
@@ -145,18 +152,19 @@ async function main() {
           matchesCount++;
           storage.append({ ...r, id: canonicalId });
 
-          console.log(`\n[INFO] New Pro Wrestling bet detected`);
-          console.log(`  🎯 Selection: ${r.selection || r.event || 'Pro Wrestling'}`);
-          console.log(`  🏆 Event:     ${r.event || '—'}`);
-          console.log(`  📊 Market:    ${r.market || '—'}`);
-          console.log(`  👤 User:      ${r.user}`);
-          console.log(`  💰 Stake:     ${r.amount}`);
-          console.log(`  📈 Odds:      ${r.odds}`);
-          console.log(`  🕐 Time:      ${r.time}`);
+          console.log(`\n[INFO] New Qualifying Bet Detected [${r.rule}]`);
+          console.log(`  1️⃣ Sport:     ${r.sportName}`);
+          console.log(`  2️⃣ Username:  ${r.user}`);
+          console.log(`  3️⃣ Selection: ${r.selection || r.event}`);
+          console.log(`  4️⃣ Event:     ${r.event}`);
+          console.log(`  5️⃣ Market:    ${r.market || 'Match / Outright'}`);
+          console.log(`  6️⃣ Stake:     ${r.amount}`);
+          console.log(`  7️⃣ Odds:      ${r.odds}`);
+          console.log(`  8️⃣ Time:      ${r.time}`);
           if (r.betId) console.log(`  🆔 Bet ID:    ${r.betId}`);
           if (r.payout) console.log(`  💵 Payout:    ${r.payout}`);
 
-          const msg = formatNotification(r, 'wrestling');
+          const msg = formatNotification(r, r.category);
           await notifier.send(msg);
           console.log(`[INFO] Telegram notification sent\n`);
         }

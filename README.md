@@ -1,84 +1,61 @@
 
-# Stake High Roller — Pro Wrestling Watcher
+# Stake High Roller Watcher (Dual Rules Active)
 
-A 24/7 Node.js + Playwright watcher that monitors Stake's High Rollers table via Chrome DevTools Protocol (CDP) and sends instant Telegram alerts for **Pro Wrestling High Roller bets only**, including championship and special event markets.
+A 24/7 Node.js + Playwright watcher that monitors Stake's High Rollers table via Chrome DevTools Protocol (CDP) and sends instant Telegram alerts with two independent rules:
+
+1. **RULE 1 — All Sports High Rollers**: Stake > $199,000 AND Decimal Odds > 1.50 (Soccer, Basketball, Tennis, Cricket, Baseball, etc.).
+2. **RULE 2 — Pro Wrestling**: Every Pro Wrestling bet regardless of stake or odds, including WWE, AEW, Royal Rumble, Money in the Bank, WrestleMania, and championship markets.
 
 > This project does not place bets or provide betting recommendations. It forwards detected High Roller information to Telegram.
 
-## What it does
+## Notification Format (Exact 1–8 Sequence)
 
-For each newly detected Pro Wrestling High Roller bet, the watcher dispatches:
+Notifications follow Naksh's exact field hierarchy:
+`1. Sport/type → 2. Username → 3. Selection → 4. Event → 5. Market → 6. Stake → 7. Odds → 8. Time`
 
-- 👤 User: Username (or `Hidden`)
-- 🎯 Selection: Wrestler / Winner / Selection
-- 🏆 Event: Event name (e.g. Royal Rumble, WrestleMania, Money in the Bank)
-- 📊 Market: Market name (e.g. World Heavyweight Championship, Match Winner)
-- 📈 Odds: Decimal odds
-- 💰 Stake: Bet amount
-- 🕐 Stake Time: Timestamp shown on Stake
-- ⚡ Live Detected: Real-time IST timestamp
-- 🆔 Bet ID: Extracted from detail modal (when `PREVIEW_DETAILS=true`)
-
-The watcher polls every 1000ms by default (`POLL_MS=1000`). Existing rows present when the process starts are seeded during initial sync to prevent spamming Telegram with historical bets.
-
-## Pro Wrestling Detection Logic
-
-The watcher captures all Pro Wrestling bets:
-- **Sport-Level Detection**: Matches `Pro Wrestling`, `Wrestling`, `WWE`, or `AEW` icons / sport attributes.
-- **Event-Only Rows**: Detects rows even if the visible text only says `Pro Wrestling`.
-- **Special / Championship Markets**: Captures `Money in the Bank`, `Royal Rumble Match Winner`, `World Heavyweight Championship`, `WrestleMania`, etc.
-- **Wrestler Selections**: Matches individual wrestler names without requiring the word "wrestling".
-- **Strict Isolation**: Explicitly ignores all other sports (Soccer, Basketball, Cricket, Baseball, Ice Hockey, Tennis, Table Tennis, Multi bets, etc.).
-
-## Requirements
-
-- Linux (Ubuntu 22.04/24.04 LTS VPS recommended) or macOS / Windows 10/11
-- Node.js LTS (v18+)
-- Google Chrome / Chromium with remote debugging port (`--remote-debugging-port=9222`)
-- Telegram bot token and chat ID
-
-## Installation
-
-```bash
-npm install
-npm test
-```
-
-## Configuration
-
-Configure `.env` (copy from `.env.example`):
-
-```dotenv
-CDP_URL=http://127.0.0.1:9222
-POLL_MS=1000
-
-TELEGRAM_ENABLED=true
-TELEGRAM_BOT_TOKEN=8957540925:AAEMwVj0M7J7bNFeFyRck3Ncsd840FIsvKg
-TELEGRAM_CHAT_ID=5167354900
-
-PREVIEW_DETAILS=true
-TARGET_SPORT=wrestling
-
-STAKE_URL=https://stake.jp/sports/high/all
-DEBUG=true
-LOG_FILE=data/bets.jsonl
-```
-
-## Notification Example
-
+### Rule 1 Example (All Sports High Roller):
 ```text
-🤼 PRO WRESTLING HIGH ROLLER
+🚨 HIGH ROLLER BET ALERT (Stake > $199K & Odds > 1.50)
 
-👤 User: Hidden
-🎯 Selection: Roman Reigns
-🏆 Event: Money in the Bank 2026
-📊 Market: World Heavyweight Championship
-📈 Odds: 1.10
-💰 Stake: ₹100,000.00
-🕐 Stake Time: 7:14 PM
+1️⃣ Sport/Type: Soccer
+2️⃣ Username: WhaleBettor
+3️⃣ Selection: Real Madrid
+4️⃣ Event: Real Madrid - Barcelona
+5️⃣ Market: Match Winner
+6️⃣ Stake: $250,000.00
+7️⃣ Odds: 2.15
+8️⃣ Time: 7:14 PM
+⚡ Live Detected: 1:05:04 AM IST
+🆔 Bet ID: 992817263
+```
+
+### Rule 2 Example (Pro Wrestling):
+```text
+🤼 PRO WRESTLING BET ALERT
+
+1️⃣ Sport/Type: Pro Wrestling
+2️⃣ Username: Hidden
+3️⃣ Selection: Roman Reigns
+4️⃣ Event: Money in the Bank 2026
+5️⃣ Market: World Heavyweight Championship
+6️⃣ Stake: ₹100,000.00
+7️⃣ Odds: 1.10
+8️⃣ Time: 7:14 PM
 ⚡ Live Detected: 12:44:15 AM IST
 🆔 Bet ID: 881923145
 ```
+
+## Qualification Examples
+
+| Bet | Criteria Check | Alert Sent? |
+|---|---|---|
+| `$199,001` @ `1.51` (Soccer) | Stake > $199k & Odds > 1.50 | ✅ **YES** |
+| `$250,000` @ `2.00` (Basketball) | Stake > $199k & Odds > 1.50 | ✅ **YES** |
+| `$199,000` @ `2.00` (Tennis) | Stake not > $199k | ❌ **NO** |
+| `$300,000` @ `1.50` (Cricket) | Odds not > 1.50 | ❌ **NO** |
+| `$150,000` @ `3.00` (Hockey) | Stake not > $199k | ❌ **NO** |
+| `$50` @ `1.05` (Pro Wrestling) | Pro Wrestling (Rule 2) | ✅ **YES** |
+| `$250,000` @ `1.20` (Pro Wrestling) | Pro Wrestling (Rule 2) | ✅ **YES** |
 
 ## Running 24/7 Continuously
 

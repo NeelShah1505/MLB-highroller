@@ -1,83 +1,48 @@
-export function formatNotification(r, category = 'tennis') {
-  if (category === 'tennis' || r.category === 'tennis') {
-    const liveTime = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: true,
-    }).format(new Date());
+export function formatNotification(r, category = 'highroller') {
+  const liveTime = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: true,
+  }).format(new Date());
 
-    const lines = [
-      '🎾 *TENNIS HIGH ROLLER*',
-      '',
-      `👤 *User:* \`${r.user || 'Hidden'}\``,
-      `🎾 *Event:* \`${r.event || '—'}\``,
-      `💰 *Amount:* \`${r.amount || '—'}\``,
-      `📈 *Odds:* \`${r.odds || '—'}\``,
-      `🕐 *Stake Time:* \`${r.time || '—'}\``,
-      `⚡ *Live Detected:* \`${liveTime} IST\``,
-    ];
+  const isWrestling = category === 'wrestling' || r.category === 'wrestling';
+  const header = isWrestling
+    ? '🤼 *PRO WRESTLING BET ALERT*'
+    : '🚨 *HIGH ROLLER BET ALERT* (Stake > $199K & Odds > 1.50)';
 
-    if (r.market && r.market !== r.event) {
-      lines.push(`🎯 *Market:* \`${r.market}\``);
-    }
-    if (r.payout) {
-      lines.push(`💵 *Payout:* \`${r.payout}\``);
-    }
-    if (r.betId) {
-      lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
-    }
+  const sportName = isWrestling ? 'Pro Wrestling' : (r.sportName || r.sport || 'Sports');
+  const user = r.user || 'Hidden';
+  const selection = r.selection || r.event || '—';
+  const event = r.event || r.selection || '—';
+  const market = r.market || (isWrestling ? 'Championship / Outright' : 'Match / Winner');
+  const stake = r.amount || '—';
+  const odds = r.odds || '—';
+  const time = r.time || '—';
 
-    return lines.join('\n');
+  const lines = [
+    header,
+    '',
+    `1️⃣ *Sport/Type:* \`${sportName}\``,
+    `2️⃣ *Username:* \`${user}\``,
+    `3️⃣ *Selection:* \`${selection}\``,
+    `4️⃣ *Event:* \`${event}\``,
+    `5️⃣ *Market:* \`${market}\``,
+    `6️⃣ *Stake:* \`${stake}\``,
+    `7️⃣ *Odds:* \`${odds}\``,
+    `8️⃣ *Time:* \`${time}\``,
+    `⚡ *Live Detected:* \`${liveTime} IST\``,
+  ];
+
+  if (r.payout) {
+    lines.push(`💵 *Payout:* \`${r.payout}\``);
+  }
+  if (r.betId) {
+    lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
   }
 
-  if (category === 'wrestling' || r.category === 'wrestling') {
-    const liveTime = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: true,
-    }).format(new Date());
-
-    const lines = [
-      '🤼 *PRO WRESTLING HIGH ROLLER*',
-      '',
-      `👤 *User:* \`${r.user || 'Hidden'}\``,
-      `🎯 *Selection:* \`${r.selection || r.event || 'Pro Wrestling'}\``,
-    ];
-
-    if (r.event && r.event !== r.selection && r.event !== 'Pro Wrestling') {
-      lines.push(`🏆 *Event:* \`${r.event}\``);
-    }
-    if (r.market && r.market !== r.event) {
-      lines.push(`📊 *Market:* \`${r.market}\``);
-    }
-
-    lines.push(`📈 *Odds:* \`${r.odds || '—'}\``);
-    lines.push(`💰 *Stake:* \`${r.amount || '—'}\``);
-    lines.push(`🕐 *Stake Time:* \`${r.time || '—'}\``);
-    lines.push(`⚡ *Live Detected:* \`${liveTime} IST\``);
-
-    if (r.payout) {
-      lines.push(`💵 *Payout:* \`${r.payout}\``);
-    }
-    if (r.betId) {
-      lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
-    }
-
-    return lines.join('\n');
-  }
-
-  return [
-    '⚾ *MLB Player Prop Alert*',
-    `*Player / Market:* \`${r.event || '—'}\``,
-    `*Odds:* \`${r.odds || '—'}\``,
-    `*Amount:* \`${r.amount || '—'}\``,
-    `*User:* \`${r.user || 'Hidden'}\``,
-    `*Time:* \`${r.time || '—'}\``,
-  ].join('\n');
+  return lines.join('\n');
 }
 
 export class TelegramNotifier {

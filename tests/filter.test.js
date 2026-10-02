@@ -162,23 +162,40 @@ test('looksProWrestling strictly ignores non-wrestling sports', () => {
   }), false);
 });
 
-test('classifyBet in wrestling mode only matches wrestling bets', () => {
-  const wrestlingBet = {
-    sport: 'Pro Wrestling',
-    icons: ['Wrestling', 'AnonymousFilled'],
-    event: 'Royal Rumble Match Winner',
-    rawText: 'Royal Rumble Match Winner',
-  };
-  const res = classifyBet(wrestlingBet, { targetSport: 'wrestling' });
-  assert.equal(res.isMatch, true);
-  assert.equal(res.category, 'wrestling');
+test('classifyBet strictly applies Rule 1 and Rule 2 based on Naksh specifications', () => {
+  // RULE 1: All Sports High Rollers (Stake > $199k AND Odds > 1.50)
+  // Example 1: $199,001 @ 1.51 -> MATCH
+  const ex1 = classifyBet({ sport: 'Soccer', amount: '$199,001', odds: '1.51', event: 'Arsenal - Chelsea' });
+  assert.equal(ex1.isMatch, true);
+  assert.equal(ex1.category, 'highroller');
 
-  const tennisBet = {
-    sport: 'Tennis',
-    icons: ['Tennis'],
-    event: 'Valentin Royer',
-    rawText: 'Valentin Royer',
-  };
-  const tennisRes = classifyBet(tennisBet, { targetSport: 'wrestling' });
-  assert.equal(tennisRes.isMatch, false);
+  // Example 2: $250,000 @ 2.00 -> MATCH
+  const ex2 = classifyBet({ sport: 'Basketball', amount: '$250,000', odds: '2.00', event: 'Lakers - Celtics' });
+  assert.equal(ex2.isMatch, true);
+  assert.equal(ex2.category, 'highroller');
+
+  // Example 3: $199,000 @ 2.00 -> NO MATCH (amount must be strictly > 199000)
+  const ex3 = classifyBet({ sport: 'Tennis', amount: '$199,000', odds: '2.00', event: 'Alcaraz - Sinner' });
+  assert.equal(ex3.isMatch, false);
+
+  // Example 4: $300,000 @ 1.50 -> NO MATCH (odds must be strictly > 1.50)
+  const ex4 = classifyBet({ sport: 'Cricket', amount: '$300,000', odds: '1.50', event: 'India - Australia' });
+  assert.equal(ex4.isMatch, false);
+
+  // Example 5: $150,000 @ 3.00 -> NO MATCH (amount must be > 199000)
+  const ex5 = classifyBet({ sport: 'IceHockey', amount: '$150,000', odds: '3.00', event: 'Rangers - Bruins' });
+  assert.equal(ex5.isMatch, false);
+
+  // RULE 2: Pro Wrestling - EVERY bet regardless of stake or odds
+  const w1 = classifyBet({ sport: 'Pro Wrestling', amount: '$50', odds: '1.05', event: 'Roman Reigns' });
+  assert.equal(w1.isMatch, true);
+  assert.equal(w1.category, 'wrestling');
+
+  const w2 = classifyBet({ sport: 'Specials', amount: '$1,000', odds: '2.50', event: 'Money in the Bank 2026' });
+  assert.equal(w2.isMatch, true);
+  assert.equal(w2.category, 'wrestling');
+
+  const w3 = classifyBet({ sport: 'Wrestling', amount: '$250,000', odds: '1.20', event: 'Royal Rumble Match Winner' });
+  assert.equal(w3.isMatch, true);
+  assert.equal(w3.category, 'wrestling');
 });

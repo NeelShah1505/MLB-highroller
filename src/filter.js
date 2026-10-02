@@ -129,35 +129,67 @@ export function looksProWrestling(r) {
   return false;
 }
 
-export function classifyBet(r, cfg = { playerPropsOnly: true, targetSport: 'wrestling' }) {
-  const target = (cfg.targetSport || 'wrestling').toLowerCase();
+export function parseAmount(s) {
+  if (typeof s === 'number') return s;
+  if (!s) return 0;
+  const cleaned = String(s).replace(/[^\d.]/g, '');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
 
-  // If configured for Pro Wrestling (default)
-  if (target === 'wrestling') {
-    if (looksProWrestling(r)) {
-      return { isMatch: true, category: 'wrestling' };
-    }
-    return { isMatch: false, category: null };
+export function parseOdds(s) {
+  if (typeof s === 'number') return s;
+  if (!s) return 0;
+  const cleaned = String(s).replace(/[^\d.]/g, '');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function formatSportName(rawSport, icons = [], event = '') {
+  if (looksProWrestling({ sport: rawSport, icons, event })) {
+    return 'Pro Wrestling';
   }
-
-  // If configured for Tennis
-  if (target === 'tennis') {
-    if (looksTennis(r)) {
-      return { isMatch: true, category: 'tennis' };
-    }
-    return { isMatch: false, category: null };
+  const s = String(rawSport || '').trim();
+  if (!s || ['AnonymousFilled', 'USDT', 'USDC', 'BTC', 'ETH', 'DAI'].includes(s)) {
+    const found = icons.find(i => !['AnonymousFilled', 'USDT', 'USDC', 'BTC', 'ETH', 'DAI', 'CanadaFlag'].includes(i));
+    if (found) return found.replace(/([a-z])([A-Z])/g, '$1 $2');
+    return 'Sports';
   }
+  return s.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
 
-  // Multi-sport fallback
+/**
+ * Dual Notification Rules:
+ *
+ * RULE 1 — All Sports High Rollers:
+ *   - Monitor ALL sports/categories.
+ *   - Notify ONLY when: Stake > $199,000 AND Decimal Odds > 1.50.
+ *
+ * RULE 2 — Pro Wrestling:
+ *   - Notify for EVERY Pro Wrestling bet, regardless of stake or odds.
+ *   - Includes all markets (championships, match winner, Royal Rumble, Money in the Bank, etc.).
+ */
+export function classifyBet(r, cfg = {}) {
+  // RULE 2: Pro Wrestling - Any stake, any odds
   if (looksProWrestling(r)) {
-    return { isMatch: true, category: 'wrestling' };
-  }
-  if (looksTennis(r)) {
-    return { isMatch: true, category: 'tennis' };
-  }
-  if (looksPlayerProp(r, cfg.playerPropsOnly)) {
-    return { isMatch: true, category: 'mlb' };
+    return {
+      isMatch: true,
+      category: 'wrestling',
+      rule: 'RULE 2 — Pro Wrestling (All Stakes & Odds)',
+    };
   }
 
-  return { isMatch: false, category: null };
+  // RULE 1: All Sports High Rollers - Stake > $199,000 AND Decimal Odds > 1.50
+  const amount = parseAmount(r.amount);
+  const odds = parseOdds(r.odds);
+
+  if (amount > 199000 && odds > 1.50) {
+    return {
+      isMatch: true,
+      category: 'highroller',
+      rule: 'RULE 1 — All Sports High Roller (Stake > $199k & Odds > 1.50)',
+    };
+  }
+
+  return { isMatch: false, category: null, rule: null };
 }
