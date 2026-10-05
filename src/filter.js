@@ -36,11 +36,11 @@ export function looksTennis(r) {
     return false;
   }
 
-  // 4. Check sport property and icons
-  if (sport === 'tennis' || sport.includes('tennis')) {
+  // 4. Check sport property and icons (case-insensitive)
+  if ((sport.includes('tennis') || hay.includes('tennis')) && !sport.includes('table') && !hay.includes('table tennis') && !hay.includes('tabletennis')) {
     return true;
   }
-  if (Array.isArray(r.icons) && r.icons.includes('Tennis')) {
+  if (Array.isArray(r.icons) && r.icons.some(i => i.toLowerCase().includes('tennis') && !i.toLowerCase().includes('table'))) {
     return true;
   }
 
@@ -202,6 +202,17 @@ export function formatSportName(rawSport, icons = [], event = '') {
  *    - Stake > $199,000 USD AND Decimal Odds > 1.50.
  */
 export function classifyBet(r, cfg = {}) {
+  // Option: Rapid All-Sports Testing Mode (if user sets NOTIFY_ALL=true in .env)
+  if (cfg.notifyAll === true || cfg.targetSport === 'all') {
+    const isWrestling = looksProWrestling(r);
+    const isTennis = looksTennis(r);
+    return {
+      isMatch: true,
+      category: isWrestling ? 'wrestling' : (isTennis ? 'tennis' : 'highroller'),
+      rule: 'ALL SPORTS (Rapid Live Testing Mode)',
+    };
+  }
+
   // TENNIS: Notify ALL Tennis bets (Testing Mode requested by user)
   if (looksTennis(r)) {
     return {

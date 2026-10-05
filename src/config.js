@@ -13,6 +13,7 @@ export function loadConfig(env = process.env) {
     playerPropsOnly: String(env.PLAYER_PROPS_ONLY || 'true').toLowerCase() === 'true',
     previewDetails: String(env.PREVIEW_DETAILS || 'true').toLowerCase() === 'true',
     targetSport: (env.TARGET_SPORT || 'wrestling').trim().toLowerCase(),
+    notifyAll: String(env.NOTIFY_ALL || 'false').toLowerCase() === 'true',
   };
 }
 
