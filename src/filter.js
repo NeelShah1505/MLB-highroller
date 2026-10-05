@@ -177,6 +177,9 @@ export function formatSportName(rawSport, icons = [], event = '') {
   if (looksProWrestling({ sport: rawSport, icons, event })) {
     return 'Pro Wrestling';
   }
+  if (looksTennis({ sport: rawSport, icons, event })) {
+    return 'Tennis';
+  }
   const s = String(rawSport || '').trim();
   if (!s || ['AnonymousFilled', 'USDT', 'USDC', 'BTC', 'ETH', 'DAI'].includes(s)) {
     const found = icons.find(i => !['AnonymousFilled', 'USDT', 'USDC', 'BTC', 'ETH', 'DAI', 'CanadaFlag'].includes(i));
@@ -187,27 +190,37 @@ export function formatSportName(rawSport, icons = [], event = '') {
 }
 
 /**
- * Dual Notification Rules:
+ * Notification Rules:
  *
- * RULE 1 — All Sports High Rollers:
- *   - Monitor ALL sports/categories.
- *   - Notify ONLY when: Stake > $199,000 USD AND Decimal Odds > 1.50.
+ * 1. TENNIS (Testing Mode):
+ *    - Notify on EVERY Tennis High Roller bet (any stake, any odds).
  *
- * RULE 2 — Pro Wrestling:
- *   - Notify for EVERY Pro Wrestling bet, regardless of stake or odds.
- *   - Includes all markets (championships, match winner, Royal Rumble, Money in the Bank, etc.).
+ * 2. PRO WRESTLING:
+ *    - Notify on EVERY Pro Wrestling bet (any stake, any odds).
+ *
+ * 3. ALL OTHER SPORTS:
+ *    - Stake > $199,000 USD AND Decimal Odds > 1.50.
  */
 export function classifyBet(r, cfg = {}) {
-  // RULE 2: Pro Wrestling - Any stake, any odds
+  // TENNIS: Notify ALL Tennis bets (Testing Mode requested by user)
+  if (looksTennis(r)) {
+    return {
+      isMatch: true,
+      category: 'tennis',
+      rule: 'TENNIS (All Stakes & Odds - Testing Mode)',
+    };
+  }
+
+  // PRO WRESTLING: Any stake, any odds
   if (looksProWrestling(r)) {
     return {
       isMatch: true,
       category: 'wrestling',
-      rule: 'RULE 2 — Pro Wrestling (All Stakes & Odds)',
+      rule: 'PRO WRESTLING (All Stakes & Odds)',
     };
   }
 
-  // RULE 1: All Sports High Rollers - Stake > $199,000 USD AND Decimal Odds > 1.50
+  // ALL OTHER SPORTS: Stake > $199,000 USD AND Decimal Odds > 1.50
   const usdAmount = parseUsdAmount(r.amount);
   const odds = parseOdds(r.odds);
 
@@ -215,7 +228,7 @@ export function classifyBet(r, cfg = {}) {
     return {
       isMatch: true,
       category: 'highroller',
-      rule: 'RULE 1 — All Sports High Roller (Stake > $199k & Odds > 1.50)',
+      rule: 'ALL SPORTS HIGH ROLLER (Stake > $199k & Odds > 1.50)',
     };
   }
 

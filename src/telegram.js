@@ -7,16 +7,21 @@ export function formatNotification(r, category = 'highroller') {
     hour12: true,
   }).format(new Date());
 
+  const isTennis = category === 'tennis' || r.category === 'tennis';
   const isWrestling = category === 'wrestling' || r.category === 'wrestling';
-  const header = isWrestling
-    ? '🤼 *PRO WRESTLING BET ALERT*'
-    : '🚨 *HIGH ROLLER BET ALERT* (Stake > $199K & Odds > 1.50)';
+  
+  let header = '🚨 *HIGH ROLLER BET ALERT* (Stake > $199K & Odds > 1.50)';
+  if (isTennis) {
+    header = '🎾 *TENNIS HIGH ROLLER ALERT* (Testing Mode)';
+  } else if (isWrestling) {
+    header = '🤼 *PRO WRESTLING BET ALERT*';
+  }
 
-  const sportName = isWrestling ? 'Pro Wrestling' : (r.sportName || r.sport || 'Sports');
+  const sportName = isTennis ? 'Tennis' : (isWrestling ? 'Pro Wrestling' : (r.sportName || r.sport || 'Sports'));
   const user = r.user || 'Hidden';
   const selection = r.selection || r.event || '—';
   const event = r.event || r.selection || '—';
-  const market = r.market || (isWrestling ? 'Championship / Outright' : 'Match / Winner');
+  const market = r.market || (isWrestling ? 'Championship / Outright' : 'Match Winner');
   const stake = r.amount || '—';
   const odds = r.odds || '—';
   const time = r.time || '—';

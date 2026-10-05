@@ -52,14 +52,15 @@ function makeFingerprint(r) {
 
 async function main() {
   console.log('='.repeat(62));
-  console.log(' 👑 Stake High Roller Watcher (Dual Rules Active)');
+  console.log(' 👑 Stake High Roller Watcher (Tennis Testing Mode Active)');
   console.log('='.repeat(62));
   console.log(`Watching ${CFG.url}`);
   console.log(`Poll: ${CFG.pollMs}ms | Preview details: ${CFG.previewDetails ? 'yes' : 'no'}`);
   console.log(`Telegram: ${CFG.telegramEnabled ? 'enabled' : 'disabled'}`);
   console.log('Active Notification Rules:');
-  console.log('  1. ALL SPORTS: Stake > $199,000 AND Decimal Odds > 1.50');
-  console.log('  2. PRO WRESTLING: All bets (any stake, any odds)');
+  console.log('  1. 🎾 TENNIS: ALL bets (Testing Mode - any stake & odds)');
+  console.log('  2. 🤼 PRO WRESTLING: ALL bets (any stake & odds)');
+  console.log('  3. 🚨 ALL OTHER SPORTS: Stake > $199,000 AND Decimal Odds > 1.50');
   console.log('='.repeat(62));
 
   const storage = new Storage(CFG.logFile);
@@ -73,12 +74,13 @@ async function main() {
     console.log(`Telegram Bot: ${verified ? '✅ Verified & Ready' : '⚠️ Token provided but getMe check failed'}`);
     if (verified) {
       await notifier.send(
-        `🟢 *Stake High Roller Watcher Online*\n\n` +
+        `🎾 *Stake High Roller Watcher (Tennis Testing Active)*\n\n` +
         `📡 *Feed:* \`${CFG.url}\`\n` +
         `⏱ *Polling:* \`${CFG.pollMs}ms\`\n` +
         `📋 *Rules Active:*\n` +
-        `  • *Rule 1 (All Sports):* Stake > $199k & Odds > 1.50\n` +
-        `  • *Rule 2 (Pro Wrestling):* All bets (any stake & odds)\n\n` +
+        `  • *🎾 Tennis:* ALL bets (Testing Mode - any stake & odds)\n` +
+        `  • *🤼 Pro Wrestling:* ALL bets (any stake & odds)\n` +
+        `  • *🚨 All Other Sports:* Stake > $199k & Odds > 1.50\n\n` +
         `✅ Monitoring 24/7 on VPS.`
       ).catch(() => {});
     }

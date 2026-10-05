@@ -174,8 +174,8 @@ test('classifyBet strictly applies Rule 1 and Rule 2 based on Naksh specificatio
   assert.equal(ex2.isMatch, true);
   assert.equal(ex2.category, 'highroller');
 
-  // Example 3: $199,000 @ 2.00 -> NO MATCH (amount must be strictly > 199000)
-  const ex3 = classifyBet({ sport: 'Tennis', amount: '$199,000', odds: '2.00', event: 'Alcaraz - Sinner' });
+  // Example 3: $199,000 @ 2.00 -> NO MATCH for non-tennis sport (amount must be strictly > 199000)
+  const ex3 = classifyBet({ sport: 'Baseball', amount: '$199,000', odds: '2.00', event: 'Yankees - Red Sox' });
   assert.equal(ex3.isMatch, false);
 
   // Example 4: $300,000 @ 1.50 -> NO MATCH (odds must be strictly > 1.50)
@@ -185,6 +185,19 @@ test('classifyBet strictly applies Rule 1 and Rule 2 based on Naksh specificatio
   // Example 5: $150,000 @ 3.00 -> NO MATCH (amount must be > 199000)
   const ex5 = classifyBet({ sport: 'IceHockey', amount: '$150,000', odds: '3.00', event: 'Rangers - Bruins' });
   assert.equal(ex5.isMatch, false);
+
+  // TENNIS TESTING MODE: ALL Tennis bets match regardless of stake or odds
+  const t1 = classifyBet({ sport: 'Tennis', icons: ['Tennis'], amount: '$500', odds: '1.05', event: 'Alcaraz - Sinner' });
+  assert.equal(t1.isMatch, true);
+  assert.equal(t1.category, 'tennis');
+
+  const t2 = classifyBet({ sport: 'Tennis', icons: ['Tennis'], amount: '₹50,000', odds: '3.50', event: 'Medvedev - Djokovic' });
+  assert.equal(t2.isMatch, true);
+  assert.equal(t2.category, 'tennis');
+
+  // Table Tennis must still be excluded
+  const tt = classifyBet({ sport: 'TableTennis', icons: ['TableTennis'], amount: '$500', odds: '1.50', event: 'Player A - Player B' });
+  assert.equal(tt.isMatch, false);
 
   // RULE 2: Pro Wrestling - EVERY bet regardless of stake or odds
   const w1 = classifyBet({ sport: 'Pro Wrestling', amount: '$50', odds: '1.05', event: 'Roman Reigns' });
