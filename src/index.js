@@ -2,7 +2,7 @@ import { CFG } from './config.js';
 import { BrowserManager } from './browser.js';
 import { Storage } from './storage.js';
 import { TelegramNotifier, formatNotification } from './telegram.js';
-import { classifyBet, formatSportName } from './filter.js';
+import { classifyBet, formatSportName, parseUsdAmount, parseOdds } from './filter.js';
 
 function norm(s) {
   return (s || '').replace(/\s+/g, ' ').trim();
@@ -64,12 +64,24 @@ async function main() {
 
   const storage = new Storage(CFG.logFile);
   const seen = storage.loadSeen();
+  const debugSeen = new Map();
   console.log(`[INFO] Storage loaded: ${seen.size} existing bet signatures from ${CFG.logFile}`);
 
   const notifier = new TelegramNotifier(CFG.botToken, CFG.chatId, CFG.telegramEnabled);
   if (notifier.enabled) {
     const verified = await notifier.verify();
     console.log(`Telegram Bot: ${verified ? '✅ Verified & Ready' : '⚠️ Token provided but getMe check failed'}`);
+    if (verified) {
+      await notifier.send(
+        `🟢 *Stake High Roller Watcher Online*\n\n` +
+        `📡 *Feed:* \`${CFG.url}\`\n` +
+        `⏱ *Polling:* \`${CFG.pollMs}ms\`\n` +
+        `📋 *Rules Active:*\n` +
+        `  • *Rule 1 (All Sports):* Stake > $199k & Odds > 1.50\n` +
+        `  • *Rule 2 (Pro Wrestling):* All bets (any stake & odds)\n\n` +
+        `✅ Monitoring 24/7 on VPS.`
+      ).catch(() => {});
+    }
   } else {
     console.log('Telegram Bot: ❌ Not configured (check .env)');
   }
@@ -142,6 +154,26 @@ async function main() {
         console.log(`Initial sync complete: ${matches.length} existing qualifying rows seeded.`);
         console.log(`[INFO] Watcher started — live monitoring on ${CFG.pollMs}ms polling.`);
       } else {
+        if (CFG.debug) {
+          for (const r of parsed) {
+            const fp = makeFingerprint(r);
+            if (!debugSeen.has(fp)) {
+              debugSeen.set(fp, Date.now());
+              const res = classifyBet(r, CFG);
+              if (!res.isMatch) {
+                const usd = parseUsdAmount(r.amount);
+                const odds = parseOdds(r.odds);
+                let reason = '';
+                if (usd <= 199000 && odds <= 1.50) reason = `Stake ($${Math.round(usd).toLocaleString()}) <= $199k & Odds (${odds}) <= 1.50`;
+                else if (usd <= 199000) reason = `Stake ($${Math.round(usd).toLocaleString()}) <= $199k`;
+                else if (odds <= 1.50) reason = `Odds (${odds}) <= 1.50`;
+                console.log(`[DEBUG] Row seen: [${r.sportName}] ${r.event} | ${r.user} | ${r.amount} @ ${r.odds} -> ❌ Skipped (${reason})`);
+              }
+            }
+          }
+          storage.prune(debugSeen);
+        }
+
         for (const r of matches) {
           const fp = makeFingerprint(r);
           if (!fp || seen.has(fp)) continue;
