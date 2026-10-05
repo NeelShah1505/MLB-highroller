@@ -146,13 +146,22 @@ async function main() {
       pollCount++;
 
       if (!initialized) {
+        initialized = true;
+        console.log(`Current qualifying rows: ${matches.length}`);
+
+        // If NOTIFY_ALL is true for testing, immediately dispatch the latest live bet from screen!
+        if (CFG.notifyAll && matches.length > 0) {
+          const topBet = matches[0];
+          console.log(`[INFO] Rapid Test Mode: Dispatching current top live bet immediately: [${topBet.sportName}] ${topBet.event}`);
+          const msg = formatNotification(topBet, topBet.category);
+          await notifier.send(msg);
+          matchesCount++;
+        }
+
         for (const r of matches) {
           const fp = makeFingerprint(r);
           if (fp) seen.set(fp, Date.now());
         }
-        initialized = true;
-        console.log(`[]`);
-        console.log(`Current qualifying rows: ${matches.length}`);
         console.log(`Initial sync complete: ${matches.length} existing qualifying rows seeded.`);
         console.log(`[INFO] Watcher started — live monitoring on ${CFG.pollMs}ms polling.`);
       } else {

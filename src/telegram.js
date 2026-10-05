@@ -94,6 +94,20 @@ export class TelegramNotifier {
 
         if (!res.ok) {
           const errText = await res.text();
+          // If Telegram rejected formatting entities (400 Bad Request), retry immediately without parse_mode
+          if (res.status === 400 && parseMode) {
+            console.warn(`[TELEGRAM] Parse mode ${parseMode} failed (400). Retrying as plain text...`);
+            const plainRes = await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: this.chatId,
+                text,
+                disable_web_page_preview: true,
+              }),
+            });
+            if (plainRes.ok) return;
+          }
           throw new Error(`HTTP ${res.status}: ${errText}`);
         }
 
