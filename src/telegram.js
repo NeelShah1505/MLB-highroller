@@ -1,3 +1,14 @@
+/**
+ * Escape HTML special characters for Telegram HTML parse mode.
+ * Only <, >, & need escaping in Telegram's HTML subset.
+ */
+function escHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export function formatNotification(r, category = 'highroller') {
   const liveTime = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Kolkata',
@@ -9,12 +20,12 @@ export function formatNotification(r, category = 'highroller') {
 
   const isTennis = category === 'tennis' || r.category === 'tennis';
   const isWrestling = category === 'wrestling' || r.category === 'wrestling';
-  
-  let header = '🚨 *HIGH ROLLER BET ALERT* (Stake > $199K & Odds > 1.50)';
+
+  let header = '🚨 <b>HIGH ROLLER BET ALERT</b> (Stake &gt; $199K &amp; Odds &gt; 1.50)';
   if (isTennis) {
-    header = '🎾 *TENNIS HIGH ROLLER ALERT* (Testing Mode)';
+    header = '🎾 <b>TENNIS HIGH ROLLER ALERT</b> (Testing Mode)';
   } else if (isWrestling) {
-    header = '🤼 *PRO WRESTLING BET ALERT*';
+    header = '🤼 <b>PRO WRESTLING BET ALERT</b>';
   }
 
   const sportName = isTennis ? 'Tennis' : (isWrestling ? 'Pro Wrestling' : (r.sportName || r.sport || 'Sports'));
@@ -29,22 +40,22 @@ export function formatNotification(r, category = 'highroller') {
   const lines = [
     header,
     '',
-    `1️⃣ *Sport/Type:* \`${sportName}\``,
-    `2️⃣ *Username:* \`${user}\``,
-    `3️⃣ *Selection:* \`${selection}\``,
-    `4️⃣ *Event:* \`${event}\``,
-    `5️⃣ *Market:* \`${market}\``,
-    `6️⃣ *Stake:* \`${stake}\``,
-    `7️⃣ *Odds:* \`${odds}\``,
-    `8️⃣ *Time:* \`${time}\``,
-    `⚡ *Live Detected:* \`${liveTime} IST\``,
+    `1️⃣ <b>Sport/Type:</b> <code>${escHtml(sportName)}</code>`,
+    `2️⃣ <b>Username:</b> <code>${escHtml(user)}</code>`,
+    `3️⃣ <b>Selection:</b> <code>${escHtml(selection)}</code>`,
+    `4️⃣ <b>Event:</b> <code>${escHtml(event)}</code>`,
+    `5️⃣ <b>Market:</b> <code>${escHtml(market)}</code>`,
+    `6️⃣ <b>Stake:</b> <code>${escHtml(stake)}</code>`,
+    `7️⃣ <b>Odds:</b> <code>${escHtml(odds)}</code>`,
+    `8️⃣ <b>Time:</b> <code>${escHtml(time)}</code>`,
+    `⚡ <b>Live Detected:</b> <code>${escHtml(liveTime)} IST</code>`,
   ];
 
   if (r.payout) {
-    lines.push(`💵 *Payout:* \`${r.payout}\``);
+    lines.push(`💵 <b>Payout:</b> <code>${escHtml(r.payout)}</code>`);
   }
   if (r.betId) {
-    lines.push(`🆔 *Bet ID:* \`${r.betId}\``);
+    lines.push(`🆔 <b>Bet ID:</b> <code>${escHtml(r.betId)}</code>`);
   }
 
   return lines.join('\n');
@@ -68,57 +79,84 @@ export class TelegramNotifier {
     }
   }
 
-  async send(text, parseMode = 'Markdown', retries = 3) {
-    if (!this.enabled) return;
+  async send(text, parseMode = 'HTML', retries = 3) {
+    if (!this.enabled) {
+      console.log('[TELEGRAM] ⚠️ Notifications disabled — skipping send.');
+      return false;
+    }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
+        const body = {
+          chat_id: this.chatId,
+          text,
+          disable_web_page_preview: true,
+        };
+        if (parseMode) body.parse_mode = parseMode;
+
         const res = await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: this.chatId,
-            text,
-            parse_mode: parseMode,
-            disable_web_page_preview: true,
-          }),
+          body: JSON.stringify(body),
         });
 
+        const responseData = await res.json().catch(() => ({}));
+
         if (res.status === 429) {
-          const body = await res.json().catch(() => ({}));
-          const waitSec = (body.parameters && body.parameters.retry_after) || 2;
-          console.warn(`[TELEGRAM] Rate limited. Waiting ${waitSec}s...`);
+          const waitSec = (responseData.parameters && responseData.parameters.retry_after) || 2;
+          console.log(`[TELEGRAM] ⏳ Rate limited. Waiting ${waitSec}s... (attempt ${attempt}/${retries})`);
           await new Promise(r => setTimeout(r, waitSec * 1000));
           continue;
         }
 
-        if (!res.ok) {
-          const errText = await res.text();
-          // If Telegram rejected formatting entities (400 Bad Request), retry immediately without parse_mode
-          if (res.status === 400 && parseMode) {
-            console.warn(`[TELEGRAM] Parse mode ${parseMode} failed (400). Retrying as plain text...`);
-            const plainRes = await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: this.chatId,
-                text,
-                disable_web_page_preview: true,
-              }),
-            });
-            if (plainRes.ok) return;
-          }
-          throw new Error(`HTTP ${res.status}: ${errText}`);
+        if (res.ok && responseData.ok) {
+          const msgId = responseData.result && responseData.result.message_id;
+          console.log(`[TELEGRAM] ✅ Message sent successfully! (message_id: ${msgId})`);
+          return true;
         }
 
-        return;
+        // Non-OK response — log details
+        console.log(`[TELEGRAM] ❌ API error: HTTP ${res.status} — ${responseData.description || JSON.stringify(responseData)}`);
+
+        // If formatting failed (400), retry immediately as plain text (no parse_mode)
+        if (res.status === 400 && parseMode) {
+          console.log(`[TELEGRAM] 🔄 Retrying as plain text (no formatting)...`);
+          const plainBody = {
+            chat_id: this.chatId,
+            text: text.replace(/<[^>]+>/g, ''), // Strip HTML tags for plain text
+            disable_web_page_preview: true,
+          };
+          const plainRes = await fetch(`https://api.telegram.org/bot${this.botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(plainBody),
+          });
+          const plainData = await plainRes.json().catch(() => ({}));
+          if (plainRes.ok && plainData.ok) {
+            const msgId = plainData.result && plainData.result.message_id;
+            console.log(`[TELEGRAM] ✅ Plain text fallback sent! (message_id: ${msgId})`);
+            return true;
+          }
+          console.log(`[TELEGRAM] ❌ Plain text fallback also failed: HTTP ${plainRes.status} — ${plainData.description || JSON.stringify(plainData)}`);
+        }
+
+        // Don't retry on 4xx errors other than 429 (they won't succeed)
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          console.log(`[TELEGRAM] 🛑 Client error ${res.status} — not retrying.`);
+          return false;
+        }
+
+        throw new Error(`HTTP ${res.status}`);
       } catch (err) {
         if (attempt === retries) {
-          console.error(`[TELEGRAM] Failed after ${retries} attempts: ${err.message}`);
+          console.log(`[TELEGRAM] ❌ FAILED after ${retries} attempts: ${err.message}`);
+          return false;
         } else {
+          console.log(`[TELEGRAM] ⚠️ Attempt ${attempt}/${retries} failed: ${err.message}. Retrying in ${attempt}s...`);
           await new Promise(r => setTimeout(r, 1000 * attempt));
         }
       }
     }
+    return false;
   }
 }

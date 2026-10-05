@@ -74,15 +74,15 @@ async function main() {
     console.log(`Telegram Bot: ${verified ? '✅ Verified & Ready' : '⚠️ Token provided but getMe check failed'}`);
     if (verified) {
       await notifier.send(
-        `🎾 *Stake High Roller Watcher (Tennis Testing Active)*\n\n` +
-        `📡 *Feed:* \`${CFG.url}\`\n` +
-        `⏱ *Polling:* \`${CFG.pollMs}ms\`\n` +
-        `📋 *Rules Active:*\n` +
-        `  • *🎾 Tennis:* ALL bets (Testing Mode - any stake & odds)\n` +
-        `  • *🤼 Pro Wrestling:* ALL bets (any stake & odds)\n` +
-        `  • *🚨 All Other Sports:* Stake > $199k & Odds > 1.50\n\n` +
+        `🎾 <b>Stake High Roller Watcher (Tennis Testing Active)</b>\n\n` +
+        `📡 <b>Feed:</b> <code>${CFG.url}</code>\n` +
+        `⏱ <b>Polling:</b> <code>${CFG.pollMs}ms</code>\n` +
+        `📋 <b>Rules Active:</b>\n` +
+        `  • <b>🎾 Tennis:</b> ALL bets (Testing Mode - any stake &amp; odds)\n` +
+        `  • <b>🤼 Pro Wrestling:</b> ALL bets (any stake &amp; odds)\n` +
+        `  • <b>🚨 All Other Sports:</b> Stake &gt; $199k &amp; Odds &gt; 1.50\n\n` +
         `✅ Monitoring 24/7 on VPS.`
-      ).catch(() => {});
+      );
     }
   } else {
     console.log('Telegram Bot: ❌ Not configured (check .env)');
@@ -154,7 +154,12 @@ async function main() {
           const topBet = matches[0];
           console.log(`[INFO] Rapid Test Mode: Dispatching current top live bet immediately: [${topBet.sportName}] ${topBet.event}`);
           const msg = formatNotification(topBet, topBet.category);
-          await notifier.send(msg);
+          const sent = await notifier.send(msg);
+          if (sent) {
+            console.log(`[INFO] ✅ Test dispatch CONFIRMED delivered to Telegram.`);
+          } else {
+            console.log(`[INFO] ❌ Test dispatch FAILED to deliver to Telegram! Check bot token & chat ID.`);
+          }
           matchesCount++;
         }
 
@@ -229,8 +234,12 @@ async function main() {
           if (r.payout) console.log(`  💵 Payout:    ${r.payout}`);
 
           const msg = formatNotification(r, r.category);
-          await notifier.send(msg);
-          console.log(`[INFO] Telegram notification sent\n`);
+          const sent = await notifier.send(msg);
+          if (sent) {
+            console.log(`[INFO] ✅ Telegram notification delivered!\n`);
+          } else {
+            console.log(`[INFO] ❌ Telegram notification FAILED to deliver!\n`);
+          }
         }
       }
 
