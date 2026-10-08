@@ -243,3 +243,49 @@ test('classifyBet strictly applies Rule 1 and Rule 2 based on Naksh specificatio
   assert.equal(whaleInr.isMatch, true);
   assert.equal(whaleInr.category, 'highroller');
 });
+
+test('parseRow handles standard cells and strips leading empty icon cells', async () => {
+  const { parseRow } = await import('../src/index.js');
+
+  // Standard row
+  const row1 = parseRow({
+    rowIndex: 0,
+    cells: [
+      { text: 'Alcaraz - Djokovic' },
+      { text: 'Hidden' },
+      { text: '3:45 PM' },
+      { text: '1.75' },
+      { text: '$50,000.00' }
+    ],
+    sport: 'Tennis',
+    icons: ['Tennis'],
+    rowText: 'Alcaraz - Djokovic Hidden 3:45 PM 1.75 $50,000.00',
+  });
+  assert.equal(row1.event, 'Alcaraz - Djokovic');
+  assert.equal(row1.user, 'Hidden');
+  assert.equal(row1.time, '3:45 PM');
+  assert.equal(row1.odds, '1.75');
+  assert.equal(row1.amount, '$50,000.00');
+
+  // Row with leading empty cell (icon column)
+  const rowWithEmptyIconCol = parseRow({
+    rowIndex: 1,
+    cells: [
+      { text: '' }, // empty icon cell
+      { text: 'Roman Reigns' },
+      { text: 'VipUser' },
+      { text: '11:20 PM' },
+      { text: '2.50' },
+      { text: '$200,000.00' }
+    ],
+    sport: 'Wrestling',
+    icons: ['Wrestling'],
+    rowText: 'Roman Reigns VipUser 11:20 PM 2.50 $200,000.00',
+  });
+  assert.equal(rowWithEmptyIconCol.event, 'Roman Reigns');
+  assert.equal(rowWithEmptyIconCol.user, 'VipUser');
+  assert.equal(rowWithEmptyIconCol.time, '11:20 PM');
+  assert.equal(rowWithEmptyIconCol.odds, '2.50');
+  assert.equal(rowWithEmptyIconCol.amount, '$200,000.00');
+});
+

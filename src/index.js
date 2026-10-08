@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { CFG } from './config.js';
 import { BrowserManager } from './browser.js';
 import { Storage } from './storage.js';
@@ -17,18 +18,24 @@ function isLikelyTime(s) {
   return /\b\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?\b/i.test(s);
 }
 
-function parseRow(raw) {
-  const texts = raw.cells.map(x => norm(x.text));
+export function parseRow(raw) {
+  if (!raw || !Array.isArray(raw.cells)) return null;
+  let texts = raw.cells.map(x => norm(typeof x === 'string' ? x : x?.text));
+  // Strip leading empty cells (e.g. icon-only column with no text)
+  while (texts.length > 0 && texts[0] === '') {
+    texts.shift();
+  }
   if (texts.length < 4) return null;
-  let event, user, time, odds, amount;
-  if (texts.length >= 5) {
+
+  let event = '', user = '', time = '', odds = '', amount = '';
+  if (texts.length >= 5 && isLikelyTime(texts[2]) && isLikelyOdds(texts[3])) {
     [event, user, time, odds, amount] = texts.slice(0, 5);
   } else {
     time = texts.find(isLikelyTime) || '';
     odds = texts.find(isLikelyOdds) || '';
-    event = texts[0] || '';
-    amount = texts.find((x, i) => i > 0 && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
-    user = texts.find(x => x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
+    event = texts.find(x => x && x !== time && x !== odds && !/[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts[0] || '';
+    amount = texts.find((x, i) => x && x !== event && x !== odds && x !== time && /[$€£₹₽₺₴₦₱₫₩฿₮₲₵₡]/.test(x)) || texts.at(-1) || '';
+    user = texts.find(x => x && x !== event && x !== time && x !== odds && x !== amount) || 'Hidden';
   }
   const sportName = formatSportName(raw.sport, raw.icons || [], event);
 
@@ -42,7 +49,7 @@ function parseRow(raw) {
     amount,
     sport: raw.sport || '',
     icons: raw.icons || [],
-    rawText: raw.rowText,
+    rawText: raw.rowText || '',
   };
 }
 
@@ -264,5 +271,6 @@ async function main() {
 }
 
 process.on('SIGINT', () => { console.log('\n[INFO] Shutting down cleanly...'); process.exit(0); });
-process.on('SIGTERM', () => { console.log('\n[INFO] Terminating cleanly...'); process.exit(0); });
-main().catch(err => { console.error('Fatal crash:', err); process.exit(1); });
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch(err => { console.error('Fatal crash:', err); process.exit(1); });
+}
