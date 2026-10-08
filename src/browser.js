@@ -41,14 +41,40 @@ export class BrowserManager {
     if (!this.page) throw new Error('Page is not initialized.');
     return this.page.evaluate(() => {
       const rows = [...document.querySelectorAll('table tbody tr')];
+      const knownSports = [
+        'Tennis', 'TableTennis', 'Baseball', 'AmericanFootball', 'Soccer',
+        'Basketball', 'IceHockey', 'Specials', 'Entertainment', 'Wrestling',
+        'ProWrestling', 'MMA', 'Cricket', 'Boxing', 'Darts', 'Rugby'
+      ];
+
       return rows.map((row, index) => {
         const cells = [...row.querySelectorAll('th,td')].map(c => ({ text: c.innerText || c.textContent || '' }));
-        const icons = [...row.querySelectorAll('[data-ds-icon]')].map(el => el.getAttribute('data-ds-icon')).filter(Boolean);
+        const rawIcons = [];
+
+        // 1. Direct data-ds-icon or data-sport attributes
+        for (const el of row.querySelectorAll('[data-ds-icon], [data-sport], svg, [class*="icon"]')) {
+          const ds = el.getAttribute('data-ds-icon') || el.getAttribute('data-sport');
+          if (ds) rawIcons.push(ds);
+
+          const aria = el.getAttribute('aria-label') || el.getAttribute('title');
+          if (aria) rawIcons.push(aria);
+
+          const use = el.querySelector('use');
+          if (use) {
+            const href = use.getAttribute('href') || use.getAttribute('xlink:href') || '';
+            const match = href.match(/icon-([a-zA-Z0-9_-]+)/);
+            if (match) rawIcons.push(match[1]);
+          }
+        }
+
+        const icons = [...new Set(rawIcons.filter(Boolean))];
+        const sport = icons.find(x => knownSports.some(k => k.toLowerCase() === String(x).toLowerCase())) || icons[0] || '';
+
         return {
           rowIndex: index,
           rowText: row.innerText || row.textContent || '',
           cells,
-          sport: icons.find(x => ['Tennis', 'TableTennis', 'Baseball', 'AmericanFootball', 'Soccer', 'Basketball', 'IceHockey', 'Specials', 'Entertainment', 'Wrestling', 'MMA'].includes(x)) || icons[0] || '',
+          sport,
           icons,
         };
       });
