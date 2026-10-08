@@ -89,3 +89,17 @@ test('TelegramNotifier respects enabled flag', () => {
   const enabledNotifier = new TelegramNotifier('token', 'chatId', true);
   assert.equal(enabledNotifier.enabled, true);
 });
+
+test('TelegramNotifier parses single, comma-separated, and array chat IDs', () => {
+  const single = new TelegramNotifier('token', '5167354900');
+  assert.deepEqual(single.chatIds, ['5167354900']);
+  assert.equal(single.chatId, '5167354900');
+
+  const commaSeparated = new TelegramNotifier('token', ' 5167354900,  123456789 , ');
+  assert.deepEqual(commaSeparated.chatIds, ['5167354900', '123456789']);
+  assert.equal(commaSeparated.chatId, '5167354900');
+
+  const arrayIds = new TelegramNotifier('token', ['5167354900', '987654321']);
+  assert.deepEqual(arrayIds.chatIds, ['5167354900', '987654321']);
+  assert.equal(arrayIds.chatId, '5167354900');
+});

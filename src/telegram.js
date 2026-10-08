@@ -63,9 +63,11 @@ export function formatNotification(r, category = 'highroller') {
 
 export class TelegramNotifier {
   constructor(botToken, chatId, enabled = true) {
-    this.botToken = botToken;
-    this.chatId = chatId;
-    this.enabled = Boolean(enabled && botToken && chatId);
+    this.botToken = (botToken || '').trim();
+    const rawIds = Array.isArray(chatId) ? chatId : String(chatId || '').split(',');
+    this.chatIds = rawIds.map(id => String(id).trim()).filter(Boolean);
+    this.chatId = this.chatIds[0] || '';
+    this.enabled = Boolean(enabled && this.botToken && this.chatIds.length > 0);
   }
 
   async verify() {
@@ -85,10 +87,19 @@ export class TelegramNotifier {
       return false;
     }
 
+    let anySuccess = false;
+    for (const targetChatId of this.chatIds) {
+      const sent = await this._sendToChat(targetChatId, text, parseMode, retries);
+      if (sent) anySuccess = true;
+    }
+    return anySuccess;
+  }
+
+  async _sendToChat(targetChatId, text, parseMode = 'HTML', retries = 3) {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const body = {
-          chat_id: this.chatId,
+          chat_id: targetChatId,
           text,
           disable_web_page_preview: true,
         };
@@ -104,25 +115,25 @@ export class TelegramNotifier {
 
         if (res.status === 429) {
           const waitSec = (responseData.parameters && responseData.parameters.retry_after) || 2;
-          console.log(`[TELEGRAM] ⏳ Rate limited. Waiting ${waitSec}s... (attempt ${attempt}/${retries})`);
+          console.log(`[TELEGRAM] ⏳ Rate limited on ${targetChatId}. Waiting ${waitSec}s... (attempt ${attempt}/${retries})`);
           await new Promise(r => setTimeout(r, waitSec * 1000));
           continue;
         }
 
         if (res.ok && responseData.ok) {
           const msgId = responseData.result && responseData.result.message_id;
-          console.log(`[TELEGRAM] ✅ Message sent successfully! (message_id: ${msgId})`);
+          console.log(`[TELEGRAM] ✅ Message sent to ${targetChatId}! (message_id: ${msgId})`);
           return true;
         }
 
         // Non-OK response — log details
-        console.log(`[TELEGRAM] ❌ API error: HTTP ${res.status} — ${responseData.description || JSON.stringify(responseData)}`);
+        console.log(`[TELEGRAM] ❌ API error for ${targetChatId}: HTTP ${res.status} — ${responseData.description || JSON.stringify(responseData)}`);
 
         // If formatting failed (400), retry immediately as plain text (no parse_mode)
         if (res.status === 400 && parseMode) {
-          console.log(`[TELEGRAM] 🔄 Retrying as plain text (no formatting)...`);
+          console.log(`[TELEGRAM] 🔄 Retrying as plain text on ${targetChatId}...`);
           const plainBody = {
-            chat_id: this.chatId,
+            chat_id: targetChatId,
             text: text.replace(/<[^>]+>/g, ''), // Strip HTML tags for plain text
             disable_web_page_preview: true,
           };
@@ -134,25 +145,25 @@ export class TelegramNotifier {
           const plainData = await plainRes.json().catch(() => ({}));
           if (plainRes.ok && plainData.ok) {
             const msgId = plainData.result && plainData.result.message_id;
-            console.log(`[TELEGRAM] ✅ Plain text fallback sent! (message_id: ${msgId})`);
+            console.log(`[TELEGRAM] ✅ Plain text fallback sent to ${targetChatId}! (message_id: ${msgId})`);
             return true;
           }
-          console.log(`[TELEGRAM] ❌ Plain text fallback also failed: HTTP ${plainRes.status} — ${plainData.description || JSON.stringify(plainData)}`);
+          console.log(`[TELEGRAM] ❌ Plain text fallback failed for ${targetChatId}: HTTP ${plainRes.status} — ${plainData.description || JSON.stringify(plainData)}`);
         }
 
         // Don't retry on 4xx errors other than 429 (they won't succeed)
         if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-          console.log(`[TELEGRAM] 🛑 Client error ${res.status} — not retrying.`);
+          console.log(`[TELEGRAM] 🛑 Client error ${res.status} for ${targetChatId} — not retrying.`);
           return false;
         }
 
         throw new Error(`HTTP ${res.status}`);
       } catch (err) {
         if (attempt === retries) {
-          console.log(`[TELEGRAM] ❌ FAILED after ${retries} attempts: ${err.message}`);
+          console.log(`[TELEGRAM] ❌ FAILED for ${targetChatId} after ${retries} attempts: ${err.message}`);
           return false;
         } else {
-          console.log(`[TELEGRAM] ⚠️ Attempt ${attempt}/${retries} failed: ${err.message}. Retrying in ${attempt}s...`);
+          console.log(`[TELEGRAM] ⚠️ Attempt ${attempt}/${retries} failed for ${targetChatId}: ${err.message}. Retrying in ${attempt}s...`);
           await new Promise(r => setTimeout(r, 1000 * attempt));
         }
       }
