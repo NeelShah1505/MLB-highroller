@@ -231,15 +231,17 @@ export function classifyBet(r, cfg = {}) {
     };
   }
 
-  // ALL OTHER SPORTS: Stake > $199,000 USD AND Decimal Odds > 1.50
+  // ALL OTHER SPORTS: Stake > minStake USD AND Decimal Odds > minOdds
   const usdAmount = parseUsdAmount(r.amount);
   const odds = parseOdds(r.odds);
+  const minStake = typeof cfg.minStake === 'number' && Number.isFinite(cfg.minStake) ? cfg.minStake : 199000;
+  const minOdds = typeof cfg.minOdds === 'number' && Number.isFinite(cfg.minOdds) ? cfg.minOdds : 1.50;
 
-  if (usdAmount > 199000 && odds > 1.50) {
+  if (usdAmount > minStake && odds > minOdds) {
     return {
       isMatch: true,
       category: 'highroller',
-      rule: 'ALL SPORTS HIGH ROLLER (Stake > $199k & Odds > 1.50)',
+      rule: `ALL SPORTS HIGH ROLLER (Stake > $${Math.round(minStake).toLocaleString()} & Odds > ${minOdds.toFixed(2)})`,
     };
   }
 

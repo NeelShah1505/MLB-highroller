@@ -81,6 +81,24 @@ export class BrowserManager {
     });
   }
 
+  async isCloudflareChallenge() {
+    if (!this.page) return false;
+    try {
+      return await this.page.evaluate(() => {
+        const title = (document.title || '').toLowerCase();
+        const text = (document.body ? document.body.innerText : '').toLowerCase();
+        return (
+          title.includes('just a moment') ||
+          text.includes('verify you are human') ||
+          text.includes('checking your browser') ||
+          Boolean(document.querySelector('iframe[src*="cloudflare"], #challenge-running, #cf-challenge-running'))
+        );
+      });
+    } catch {
+      return false;
+    }
+  }
+
   async fetchRowDetails(rowIndex) {
     if (!this.page) return null;
     try {

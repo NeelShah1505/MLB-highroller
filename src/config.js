@@ -14,6 +14,8 @@ export function loadConfig(env = process.env) {
     previewDetails: String(env.PREVIEW_DETAILS || 'true').toLowerCase() === 'true',
     targetSport: (env.TARGET_SPORT || 'wrestling').trim().toLowerCase(),
     notifyAll: String(env.NOTIFY_ALL || 'false').toLowerCase() === 'true',
+    minStake: Number(env.MIN_STAKE || 199000),
+    minOdds: Number(env.MIN_ODDS || 1.50),
   };
 }
 

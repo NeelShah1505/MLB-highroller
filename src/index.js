@@ -135,7 +135,12 @@ async function main() {
       if (!rawRows || rawRows.length === 0) {
         emptyPolls++;
         if (emptyPolls >= 15) {
-          console.warn('[WARN] No table rows detected for 15 seconds. Reloading Stake page...');
+          const isCf = await browserManager.isCloudflareChallenge();
+          if (isCf) {
+            console.warn('[WARN] 🛡️ Cloudflare challenge detected! Stake is showing a human verification page on the VPS.');
+          } else {
+            console.warn('[WARN] No table rows detected for 15 seconds. Reloading Stake page...');
+          }
           if (browserManager.page) {
             await browserManager.page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
           }
